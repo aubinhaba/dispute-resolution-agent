@@ -1,0 +1,29 @@
+# Dispute-agent application configuration.
+#
+# Security: NO API key here. The Anthropic key is read from the ANTHROPIC_API_KEY environment
+# variable (auto-detected by Spring AI) and is never committed.
+
+spring:
+  application:
+    name: dispute-agent
+  # No web server: the app exists only to auto-configure the Anthropic ChatModel.
+  main:
+    web-application-type: none
+
+  ai:
+    anthropic:
+      # api-key: intentionally absent -> Spring AI reads ANTHROPIC_API_KEY from the environment.
+      chat:
+        options:
+          # Default model: Haiku, cheap and good for iterating. Switch to Sonnet for stronger
+          # reasoning on a real decision (configurable without recompiling).
+          model: claude-haiku-4-5
+          # Low temperature to keep the decision as stable as possible (non-determinism remains,
+          # but is reduced). 0.0 is not guaranteed deterministic but limits dispersion.
+          temperature: 0.0
+
+# Audit metadata injected by the adapter into every DisputeDecision (traceability, eval).
+# Tied to the prompt version used: resources/prompts/decision/decide.v1.0.0.md
+dra:
+  agent:
+    decision-version: "decision-llm@v1.0.0"

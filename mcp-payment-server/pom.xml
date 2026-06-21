@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  mcp-payment-server module — read-only MCP tools server.
+
+  Will expose transactional tools (@McpTool) over mocked data (get_transaction,
+  get_customer_history, ...). Still empty (no sources): it locks the multi-module layout early.
+
+  Capability boundary (locked, see ADR-0001): this module carries transactional DATA via MCP tools;
+  business RULES go through RAG on the dispute-agent side. The two are never mixed.
+
+  No version declared here: everything comes from the parent BOMs.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bino.dra</groupId>
+        <artifactId>dra-parent</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>mcp-payment-server</artifactId>
+    <name>MCP Payment Server (read-only transactional tools)</name>
+
+    <!-- TODO: add spring-ai-starter-mcp-server + @McpTool services. -->
+</project>

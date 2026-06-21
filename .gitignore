@@ -1,0 +1,33 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.properties
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs / runtime
+*.log
+
+# Secrets — never commit an LLM API key
+.env
+*.env
+application-local.yml
+application-local.properties
+secrets.properties
+
+# Local Maven settings (machine / internal infra specific — do not commit)
+settings-local.xml
