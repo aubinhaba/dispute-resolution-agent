@@ -9,12 +9,11 @@ Initially, the out ports (`TransactionGateway`, `RuleRetriever`, `DecisionEngine
 `domain/port`, following the hexagonal "DDD" school where the domain owns the interfaces it needs.
 The initial project framing reflected that choice.
 
-Two schools coexist for the LOCATION of ports, both respecting dependency inversion:
+Two schools coexist for the location of ports, both respecting dependency inversion:
 
 - **Hexagonal (DDD)**: the domain defines its ports → `domain/port`.
-- **Clean Architecture (R. C. Martin)**: *Entities* (innermost layer) are pure enterprise rules;
-  ports are *Use Case* boundaries and therefore live in the application layer. An entity does not even
-  know the ports.
+- **Clean Architecture (R. C. Martin)**: entities are pure enterprise rules; ports are use-case
+  boundaries and live in the application layer.
 
 ## Decision
 
@@ -30,10 +29,10 @@ Spring AI.
 
 ## Alternatives considered
 
-- **Keep ports in `domain/port` (hexagonal DDD).** Rejected: our ports are clearly USE-CASE
-  collaborators, not entity invariants — the `Dispute` entity has no need of a `TransactionGateway`.
-  Placing them next to their consumer (the application layer) is more cohesive and keeps the domain
-  reusable across use cases. (A preference, not a bug fix: the hexagonal option would have worked.)
+- **Keep ports in `domain/port` (hexagonal DDD).** Rejected: our ports are use-case collaborators, not
+  entity invariants — the `Dispute` entity has no need of a `TransactionGateway`. Placing them next to
+  their consumer is more cohesive and keeps the domain reusable. (A preference — the hexagonal option
+  would also have worked.)
 
 ## Consequences
 

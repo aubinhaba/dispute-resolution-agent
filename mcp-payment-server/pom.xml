@@ -1,14 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  mcp-payment-server module — read-only MCP tools server.
-
-  Will expose transactional tools (@McpTool) over mocked data (get_transaction,
-  get_customer_history, ...). Still empty (no sources): it locks the multi-module layout early.
-
-  Capability boundary (locked, see ADR-0001): this module carries transactional DATA via MCP tools;
-  business RULES go through RAG on the dispute-agent side. The two are never mixed.
-
-  No version declared here: everything comes from the parent BOMs.
+  Read-only MCP tools server (STDIO). Depends on no other module: server and client share a JSON
+  contract, not code, so any MCP client can consume it (see ADR-0008). Capability boundary: this module
+  carries transactional data; business rules go through RAG on the dispute-agent side (ADR-0001).
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -24,5 +18,40 @@
     <artifactId>mcp-payment-server</artifactId>
     <name>MCP Payment Server (read-only transactional tools)</name>
 
-    <!-- TODO: add spring-ai-starter-mcp-server + @McpTool services. -->
+    <dependencies>
+        <!-- "core" MCP server starter: STDIO transport + @McpTool scanner + MCP Java SDK. -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-server</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Serializes tool outputs to JSON for the PCI-invariant test. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Executable fat jar: under STDIO the client launches this jar as a subprocess. -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

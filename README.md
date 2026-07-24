@@ -13,14 +13,12 @@ and an architecture designed for evaluation.
 An LLM is non-deterministic. For a financial decision, "it worked in the demo" is not enough. Three
 requirements shape the system:
 
-- **Auditability** — every decision carries `citedRulePassages` (rules) and `evidenceRefs`
-  (evidence); a decision without a trace is rejected.
-- **Reliability** — the model's output is a *draft* validated against invariants before publication;
-  the system itself attests the metadata (`disputeId`, agent version, timestamp), the model never
-  fabricates them.
-- **Evaluability** — business logic depends on abstract ports, so it is testable without calling a
-  model; accuracy is measured by an eval harness over a labelled set, never by asserting on a single
-  LLM response.
+- **Auditability** — every decision carries `citedRulePassages` and `evidenceRefs`; a decision without
+  a trace is rejected.
+- **Reliability** — the model output is a *draft* validated against invariants before publication; the
+  system attests the metadata (`disputeId`, agent version, timestamp), the model never fabricates it.
+- **Evaluability** — business logic depends on abstract ports, so accuracy is measured by an eval
+  harness over a labelled set, never by asserting on a single LLM response.
 
 ## Architecture
 
@@ -62,10 +60,19 @@ mvn verify
 The integration smoke test (a real model call) runs only when `ANTHROPIC_API_KEY` is set; without a
 key it is disabled and the build stays green.
 
+The `mcp-payment-server` module needs no API key: it exposes tools, it never calls a model. Its unit
+tests validate the four tools directly, and it packages as a standalone STDIO server:
+
+```bash
+mvn -pl mcp-payment-server package
+```
+
 ## Status
 
 Work in progress, built in steps. The current base covers the hexagonal skeleton, the data contract,
-the first structured-output LLM call and its validation guardrail.
+the first structured-output LLM call and its validation guardrail, and a read-only MCP tools server
+exposing four transactional tools (`get_transaction`, `get_customer_history`, `get_related_transactions`,
+`get_fulfillment_record`) over mocked data via STDIO.
 
 ## License
 

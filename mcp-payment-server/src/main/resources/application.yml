@@ -1,0 +1,27 @@
+# STDIO transport: stdout is reserved for JSON-RPC, so the banner and console logging are disabled below
+# (a stray byte on stdout breaks the client handshake).
+spring:
+  application:
+    name: mcp-payment-server
+  main:
+    web-application-type: none
+    banner-mode: off
+  ai:
+    mcp:
+      server:
+        stdio: true
+        name: mcp-payment-server
+        version: 0.1.0
+        type: SYNC
+        # Sent to the client at initialization; it may inject this into its LLM context.
+        instructions: >
+          Read-only payment dispute evidence tools. Start with get_transaction to retrieve the
+          disputed transaction and its risk signals, then enrich with get_customer_history,
+          get_related_transactions, and get_fulfillment_record (for goods-not-received claims).
+          All data is tokenized: customerRef is a token, card numbers are last-4 only.
+
+logging:
+  pattern:
+    console: ""
+  file:
+    name: target/mcp-payment-server.log

@@ -5,15 +5,11 @@
 
 ## Context
 
-The initial project framing pinned the stack as
-"**Spring Boot 3** + **Spring AI 2.0** + **MCP Java SDK 2.0**". At project setup, checking the real
-versions against official sources (on 2026-06-18) revealed an **incompatibility**: Spring AI 2.0.0
-(GA 2026-06-12) is built on **Spring Framework 7 / Spring Boot 4.x / Jakarta EE 11** and is **not
-backward-compatible with Spring Boot 3.x**.
-
-In other words, "Spring Boot 3 + Spring AI 2.0" is a non-existent combination. Yet the features the
-whole project relies on (`@McpTool`, `ChatClient`, RAG advisors, structured output) are Spring AI 2.0
-APIs. The stack must therefore be settled before freezing the BOM.
+The initial framing pinned "**Spring Boot 3** + **Spring AI 2.0** + **MCP Java SDK 2.0**". Checking the
+real versions against official sources (2026-06-18) revealed an **incompatibility**: Spring AI 2.0.0 is
+built on Spring Framework 7 / Spring Boot 4.x / Jakarta EE 11 and is **not** backward-compatible with
+Boot 3.x — so "Spring Boot 3 + Spring AI 2.0" is a non-existent combination. Yet the APIs the project
+relies on (`@McpTool`, `ChatClient`, RAG advisors, structured output) are Spring AI 2.0.
 
 ## Decision
 
