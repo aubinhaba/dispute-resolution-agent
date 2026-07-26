@@ -24,7 +24,11 @@
             <artifactId>spring-ai-starter-model-anthropic</artifactId>
         </dependency>
 
-        <!-- ===== test ===== -->
+        <!-- "core" variant = STDIO: no code shared with the server, only the JSON contract (see ADR-0008) -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-mcp-client</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

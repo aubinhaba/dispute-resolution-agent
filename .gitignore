@@ -31,5 +31,4 @@ secrets.properties
 
 # Local Maven settings (machine / internal infra specific — do not commit)
 settings-local.xml
-
 scripts/

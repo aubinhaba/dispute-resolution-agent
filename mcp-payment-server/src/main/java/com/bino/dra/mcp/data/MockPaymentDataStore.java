@@ -15,12 +15,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-/**
- * In-memory stand-in for a PSP/OMS backend. The dataset materializes the four eval cases (see
- * {@code dispute-agent/src/test/resources/eval/eval-cases-01.md}); the day a real backend is wired in,
- * only this class changes. Read-only by construction: immutable collections, no write method.
- * Timestamps are relative to an injected clock so the history window stays testable over real time.
- */
 @Component
 public class MockPaymentDataStore {
 
@@ -40,12 +34,13 @@ public class MockPaymentDataStore {
         this.clock = clock;
         Instant now = clock.instant();
 
+        // Each EVAL-00x row encodes the signals its expected decision rests on: edit one, the eval moves
         List<TransactionDto> all = List.of(
-                // EVAL-001 (-> ACCEPT): recent customer, failed 3DS, inconsistent geography.
+                // EVAL-001 -> ACCEPT: recent customer, failed 3DS, inconsistent geography
                 txn("TXN-EVAL-001", "MERCH-ELEC-01", "CUST-7Q2F9", 4500, daysAgo(now, 15),
                         "STRIPE", "VISA", "4242", SCA_NOT_AUTHENTICATED, MISMATCH, MATCH, "NG", "FR"),
 
-                // EVAL-002 (-> REPRESENT): alleged fraud but every signal green, loyal customer + history.
+                // EVAL-002 -> REPRESENT: alleged fraud but every signal green, loyal customer
                 txn("TXN-EVAL-002", "MERCH-ELEC-01", "CUST-M4XA1", 12000, daysAgo(now, 20),
                         "STRIPE", "VISA", "1881", SCA_AUTHENTICATED, MATCH, MATCH, "FR", "FR"),
                 txn("TXN-H-M4XA1-1", "MERCH-ELEC-01", "CUST-M4XA1", 7900, daysAgo(now, 82),
@@ -57,13 +52,13 @@ public class MockPaymentDataStore {
                 txn("TXN-H-M4XA1-4", "MERCH-ELEC-01", "CUST-M4XA1", 9900, daysAgo(now, 33),
                         "STRIPE", "VISA", "1881", SCA_AUTHENTICATED, MATCH, MATCH, "FR", "FR"),
 
-                // EVAL-003 (-> REPRESENT): "goods not received" but delivered (see fulfillment).
+                // EVAL-003 -> REPRESENT: "goods not received" but delivered (see fulfillment)
                 txn("TXN-EVAL-003", "MERCH-FASHION-02", "CUST-K9PT3", 8000, daysAgo(now, 30),
                         "ADYEN", "VISA", "0119", SCA_ATTEMPTED, MATCH, MATCH, "FR", "FR"),
                 txn("TXN-H-K9PT3-1", "MERCH-FASHION-02", "CUST-K9PT3", 6200, daysAgo(now, 75),
                         "ADYEN", "VISA", "0119", SCA_AUTHENTICATED, MATCH, MATCH, "FR", "FR"),
 
-                // EVAL-004 (-> ESCALATE): 1,500.00 EUR, above threshold — the amount decides.
+                // EVAL-004 -> ESCALATE: 1,500.00 EUR, above threshold — the amount decides
                 txn("TXN-EVAL-004", "MERCH-LUX-03", "CUST-B2RH8", 150000, daysAgo(now, 10),
                         "WORLDLINE", "VISA", "7005", SCA_AUTHENTICATED, MATCH, MATCH, "DE", "DE"),
                 txn("TXN-H-B2RH8-1", "MERCH-LUX-03", "CUST-B2RH8", 89000, daysAgo(now, 55),
@@ -72,7 +67,6 @@ public class MockPaymentDataStore {
         this.transactionsById = all.stream()
                 .collect(Collectors.toUnmodifiableMap(TransactionDto::transactionId, t -> t));
 
-        // Derived from the data, not hand-maintained, to avoid drift between tools.
         this.historyByCustomer = all.stream()
                 .collect(Collectors.groupingBy(TransactionDto::customerRef,
                         Collectors.mapping(TransactionDto::transactionId, Collectors.toUnmodifiableList())));
@@ -83,7 +77,7 @@ public class MockPaymentDataStore {
                 "TXN-EVAL-003", List.of("TXN-H-K9PT3-1"),
                 "TXN-EVAL-004", List.of("TXN-H-B2RH8-1"));
 
-        // Only physical goods have a record; its absence for EVAL-001/002 (digital) is legitimate.
+        // Physical goods only: no record for EVAL-001/002 (digital) is data, not a gap
         this.fulfillmentByTransaction = Map.of(
                 "TXN-EVAL-003", new FulfillmentRecordDto("TXN-EVAL-003", true,
                         iso(daysAgo(now, 28)), "TRK-FR-88123901", "DELIVERED"),
@@ -99,7 +93,6 @@ public class MockPaymentDataStore {
         return historyByCustomer.containsKey(customerRef);
     }
 
-    /** History within the {@code lookbackDays} window, most recent first, capped and summarized. */
     public List<TransactionSummaryDto> customerHistory(String customerRef, int lookbackDays, int limit) {
         Instant cutoff = clock.instant().minus(lookbackDays, ChronoUnit.DAYS);
         return historyByCustomer.getOrDefault(customerRef, List.of()).stream()

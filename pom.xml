@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Aggregator parent (dra-parent): aggregates the modules and centralises versions via imported BOMs.
-  Child modules declare dependencies but never versions. We import the Spring Boot BOM (rather than
-  inherit spring-boot-starter-parent) so several BOMs can stack; the trade-off is managing plugin
-  versions here. Stack: Spring Boot 4.1 + Spring AI 2.0 + MCP Java SDK 2.0 on Java 21 (see ADR-0006).
--->
+<!-- BOMs imported rather than inheriting spring-boot-starter-parent, so several can stack (see ADR-0006) -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -53,7 +48,7 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- ArchUnit: not managed by the BOMs, pinned here. -->
+            <!-- Not managed by either BOM, pinned here -->
             <dependency>
                 <groupId>com.tngtech.archunit</groupId>
                 <artifactId>archunit-junit5</artifactId>
@@ -71,11 +66,10 @@
                     <artifactId>maven-compiler-plugin</artifactId>
                     <version>${maven-compiler-plugin.version}</version>
                     <configuration>
-                        <!-- Keep parameter names in bytecode; the MCP tool JSON schema is derived from them. -->
+                        <!-- Without it the MCP tool schemas expose arg0 instead of parameter names -->
                         <parameters>true</parameters>
                     </configuration>
                 </plugin>
-                <!-- Surefire runs unit tests (*Test); Failsafe runs integration tests (*IT) in `verify`. -->
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>

@@ -1,10 +1,5 @@
 package com.bino.dra.mcp.model;
 
-/**
- * Result envelope for {@code get_fulfillment_record}. A missing record is an answer, not an error:
- * {@code found=false} plus an explanatory {@code note} tells the model nothing was shipped (e.g. digital
- * goods), rather than leaving it to guess or retry.
- */
 public record FulfillmentLookupResult(
         boolean found,
         FulfillmentRecordDto record,

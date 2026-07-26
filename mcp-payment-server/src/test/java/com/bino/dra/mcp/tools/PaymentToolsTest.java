@@ -18,11 +18,6 @@ import java.util.regex.Pattern;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * Tool tests covering three failure modes: hallucinated ids (actionable error, not a plausible result),
- * context-budget bounds (pagination is clamped), and the PCI invariant (no PAN in any serialized output).
- * Tools are exercised directly; the signature-to-JSON-schema conversion is the framework's concern.
- */
 class PaymentToolsTest {
 
     private static final Instant NOW = Instant.parse("2026-07-16T12:00:00Z");
@@ -82,13 +77,12 @@ class PaymentToolsTest {
         void missingOptionalParams_useDefaults() {
             List<TransactionSummaryDto> history = tools.getCustomerHistory("CUST-M4XA1", null, null);
 
-            assertThat(history).hasSize(5); // all of M4XA1's history fits within the defaults
+            assertThat(history).hasSize(5);
         }
 
         @Test
         @DisplayName("oversized limit requested by the model -> clamped, no context explosion")
         void oversizedLimit_isClamped() {
-            // limit=5000: the call succeeds but cannot return more than MAX_LIMIT (50).
             List<TransactionSummaryDto> history = tools.getCustomerHistory("CUST-M4XA1", 365, 5000);
 
             assertThat(history).hasSizeLessThanOrEqualTo(50);
@@ -140,7 +134,6 @@ class PaymentToolsTest {
     @DisplayName("PCI invariant: never a PAN in a tool output")
     class PciInvariant {
 
-        /** Serialize every tool's real JSON and assert no PAN-like run (>8 digits) appears in any field. */
         @Test
         @DisplayName("no PAN-like digit sequence in the JSON of the 4 tools")
         void noPanLikeDigitSequence_inAnyToolOutput() throws Exception {

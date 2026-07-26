@@ -2,10 +2,7 @@ package com.bino.dra.domain.model;
 
 import java.util.Objects;
 
-/**
- * Monetary amount in minor units (cents). Uses {@code long}, never {@code double}, to avoid
- * floating-point rounding on money. Immutable value object.
- */
+// Minor units as long, never double: no floating-point rounding on money
 public record Money(long minorUnits, String currency) {
 
     public Money {
@@ -13,6 +10,6 @@ public record Money(long minorUnits, String currency) {
         if (currency.isBlank()) {
             throw new IllegalArgumentException("currency must not be blank");
         }
-        // Sign is intentionally unconstrained: credits/refunds may be negative.
+        // Sign left unconstrained on purpose: credits and refunds are negative
     }
 }

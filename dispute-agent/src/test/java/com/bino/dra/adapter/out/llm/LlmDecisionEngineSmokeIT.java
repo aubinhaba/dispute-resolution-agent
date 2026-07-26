@@ -17,16 +17,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Integration smoke test — a real call to the model through the full Spring AI wiring.
- *
- * <p>Guarded by {@link EnabledIfEnvironmentVariable}: it runs only when {@code ANTHROPIC_API_KEY} is
- * set, so {@code mvn verify} stays green without a key. Non-determinism: we never assert the exact
- * decision or text, only structural invariants (non-null, has evidence, coherent reason code).
- * Decision accuracy is measured by the eval harness on a labelled set, not by a unit test.
- *
- * <p>Run: {@code mvn verify} with {@code ANTHROPIC_API_KEY} in the environment.
- */
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")
 class LlmDecisionEngineSmokeIT {
@@ -36,7 +26,6 @@ class LlmDecisionEngineSmokeIT {
 
     @Test
     void produces_an_auditable_valid_decision_on_a_3ds_fraud_case() {
-        // Fraud with liability shift: 3DS authenticated, AVS/CVV MATCH.
         Dispute dispute = new Dispute(
                 "D-IT-1", "TX-IT-1", "M-IT", Network.VISA, "10.4",
                 new Money(12000, "EUR"), Instant.now(), Instant.now().plusSeconds(86400),
@@ -53,7 +42,6 @@ class LlmDecisionEngineSmokeIT {
 
         DisputeDecision decision = engine.decide(dispute, List.of(tx), rules);
 
-        // Structural invariants only (no assertion on the exact decision value).
         assertThat(decision).isNotNull();
         assertThat(decision.disputeId()).isEqualTo("D-IT-1");
         assertThat(decision.decision()).isNotNull();

@@ -3,12 +3,6 @@ package com.bino.dra.domain.model;
 import java.time.Instant;
 import java.util.Objects;
 
-/**
- * Inbound dispute (chargeback) — the request the orchestrator receives.
- *
- * <p>{@code issuerClaim} is untrusted external text: it must be passed to the model as data to
- * analyse, never as an instruction (prompt-injection risk). No PAN is ever carried here.
- */
 public record Dispute(
         String disputeId,
         String transactionId,

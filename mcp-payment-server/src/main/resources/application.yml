@@ -1,5 +1,4 @@
-# STDIO transport: stdout is reserved for JSON-RPC, so the banner and console logging are disabled below
-# (a stray byte on stdout breaks the client handshake).
+# Under STDIO, stdout carries JSON-RPC: any stray byte breaks the client handshake
 spring:
   application:
     name: mcp-payment-server
@@ -13,7 +12,7 @@ spring:
         name: mcp-payment-server
         version: 0.1.0
         type: SYNC
-        # Sent to the client at initialization; it may inject this into its LLM context.
+        # Sent to the client at initialization; it may inject this into its LLM context
         instructions: >
           Read-only payment dispute evidence tools. Start with get_transaction to retrieve the
           disputed transaction and its risk signals, then enrich with get_customer_history,
@@ -21,7 +20,8 @@ spring:
           All data is tokenized: customerRef is a token, card numbers are last-4 only.
 
 logging:
-  pattern:
-    console: ""
+  threshold:
+    # OFF at the source; blanking the console pattern instead makes Logback complain on stderr
+    console: OFF
   file:
     name: target/mcp-payment-server.log

@@ -14,10 +14,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Store tests — verify the dataset faithfully materializes the four eval-case specs, so a broken value is
- * caught here rather than as a false regression in the eval harness. Clock frozen for stable windows.
- */
 class MockPaymentDataStoreTest {
 
     private static final Instant NOW = Instant.parse("2026-07-16T12:00:00Z");
@@ -63,7 +59,6 @@ class MockPaymentDataStoreTest {
             TransactionDto txn = store.findTransaction("TXN-EVAL-002").orElseThrow();
 
             List<TransactionSummaryDto> history = store.customerHistory(txn.customerRef(), 90, 20);
-            // 4 historical purchases + the disputed transaction itself, all < 90 days.
             assertThat(history).hasSize(5);
 
             List<TransactionDto> related = store.relatedTransactions("TXN-EVAL-002").orElseThrow();
@@ -86,7 +81,6 @@ class MockPaymentDataStoreTest {
         void eval004_isAboveEscalationThreshold() {
             TransactionDto txn = store.findTransaction("TXN-EVAL-004").orElseThrow();
 
-            // Threshold: minorUnits > 100000 -> ESCALATE (a non-LLM rule).
             assertThat(txn.amount().minorUnits()).isGreaterThan(100_000L);
         }
 
@@ -105,7 +99,6 @@ class MockPaymentDataStoreTest {
         @Test
         @DisplayName("lookbackDays filter: a 50-day window excludes older purchases")
         void lookbackWindow_filtersOldTransactions() {
-            // CUST-M4XA1: purchases at D-82, D-61, D-44, D-33 and D-20 (the disputed one).
             List<TransactionSummaryDto> recent = store.customerHistory("CUST-M4XA1", 50, 20);
 
             assertThat(recent).extracting(TransactionSummaryDto::transactionId)
@@ -124,7 +117,6 @@ class MockPaymentDataStoreTest {
         @Test
         @DisplayName("known customer with no activity in the window -> empty list (signal, not error)")
         void knownCustomer_quietWindow_returnsEmpty() {
-            // CUST-B2RH8: purchases at D-10 and D-55 -> a 5-day window contains nothing.
             assertThat(store.customerHistory("CUST-B2RH8", 5, 20)).isEmpty();
         }
     }

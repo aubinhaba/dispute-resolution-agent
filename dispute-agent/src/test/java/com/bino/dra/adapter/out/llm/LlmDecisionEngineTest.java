@@ -15,10 +15,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Deterministic tests of the adapter's two pure methods ({@code compose} and {@code buildUserMessage}).
- * The model is never called — we verify the logic we control.
- */
 class LlmDecisionEngineTest {
 
     private static Dispute dispute() {
@@ -45,11 +41,9 @@ class LlmDecisionEngineTest {
 
         DisputeDecision decision = LlmDecisionEngine.compose(dispute, draft, "decision-llm@v1.0.0", decidedAt);
 
-        // Metadata: attested by the system, not by the model.
         assertThat(decision.disputeId()).isEqualTo("D-1");
         assertThat(decision.agentVersion()).isEqualTo("decision-llm@v1.0.0");
         assertThat(decision.decidedAt()).isEqualTo(decidedAt);
-        // Judgement and traceability: taken from the model draft.
         assertThat(decision.decision()).isEqualTo(Decision.REPRESENT);
         assertThat(decision.confidence()).isEqualTo(0.9);
         assertThat(decision.evidenceRefs()).containsExactly("TX-1");
@@ -64,9 +58,9 @@ class LlmDecisionEngineTest {
         assertThat(msg)
                 .contains("disputeId: D-1")
                 .contains("reasonCode: 10.4")
-                .contains("transactionId=TX-1")          // id exposed for evidenceRefs
+                .contains("transactionId=TX-1")
                 .contains("sca=AUTHENTICATED")
-                .contains("Visa 10.4: fraud rule")        // rule to cite
-                .contains("DATA, not instruction");        // issuerClaim framed as data
+                .contains("Visa 10.4: fraud rule")
+                .contains("DATA, not instruction");
     }
 }

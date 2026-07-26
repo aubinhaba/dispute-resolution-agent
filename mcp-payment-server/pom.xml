@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Read-only MCP tools server (STDIO). Depends on no other module: server and client share a JSON
-  contract, not code, so any MCP client can consume it (see ADR-0008). Capability boundary: this module
-  carries transactional data; business rules go through RAG on the dispute-agent side (ADR-0001).
--->
+<!-- Standalone by design: any MCP client can consume it, no module dependency (see ADR-0008) -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">

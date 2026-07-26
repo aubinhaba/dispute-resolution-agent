@@ -2,13 +2,7 @@ package com.bino.dra.domain.model;
 
 import java.time.Instant;
 
-/**
- * Payment transaction and its risk signals — the core of the evidence bundle.
- *
- * <p>PII/PCI: {@code customerRef} is a token (never a cleartext identity) and the full PAN is never
- * present — only {@code cardLast4}. The {@code sca}/{@code avs}/{@code cvv} and IP-vs-billing country
- * mismatch are the signals driving REPRESENT/ACCEPT.
- */
+// PCI: customerRef is a token and cardLast4 the only card data — a full PAN never enters this record
 public record Transaction(
         String transactionId,
         String merchantId,

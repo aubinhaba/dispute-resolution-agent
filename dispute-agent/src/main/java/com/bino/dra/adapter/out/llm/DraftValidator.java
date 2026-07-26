@@ -6,21 +6,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Output guardrail for the LLM {@link DecisionDraft}: confidence in [0,1], known reason code,
- * non-empty evidence. Parsing without validating is a latent bug — the model can return an
- * out-of-range confidence, an invented reason code, or a decision with no evidence.
- */
 @Component
 public class DraftValidator {
 
-    // TODO: externalise the reason-code catalogue to config/domain (currently aligned with the eval set).
     private static final Set<String> KNOWN_REASON_CODES = Set.of(
             "10.4", "13.1", "13.3",   // Visa
             "4837", "4855"            // Mastercard
     );
 
-    /** Throws {@link OutputValidationException} listing all violations; returns silently if valid. */
     public void validate(DecisionDraft draft) {
         List<String> violations = new ArrayList<>();
 

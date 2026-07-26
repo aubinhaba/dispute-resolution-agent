@@ -2,10 +2,6 @@ package com.bino.dra.adapter.out.llm;
 
 import java.util.List;
 
-/**
- * Raised when the model's structured output breaks our invariants. Invalid output must never be
- * propagated as if valid — fail hard. A single repair round-trip may later precede this failure.
- */
 public class OutputValidationException extends RuntimeException {
 
     private final List<String> violations;

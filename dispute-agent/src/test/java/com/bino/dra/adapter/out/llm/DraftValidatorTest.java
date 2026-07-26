@@ -8,10 +8,6 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/**
- * Deterministic tests of the output guardrail — no LLM, no key. We test the mechanics (validation,
- * mapping), not the model's non-deterministic response.
- */
 class DraftValidatorTest {
 
     private final DraftValidator validator = new DraftValidator();

@@ -10,12 +10,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-/**
- * The four read-only transactional tools of the MCP server, over mocked data. The {@code @McpTool}
- * descriptions are the model-facing contract (sent at handshake), so they are deliberately verbose.
- * Inputs are validated: an unknown or blank id raises {@link IllegalArgumentException}, which the MCP
- * layer returns as an error result without killing the server.
- */
 @Component
 public class PaymentTools {
 
@@ -74,12 +68,12 @@ public class PaymentTools {
                     required = false)
             Integer limit) {
         requireText(customerRef, "customerRef");
+        // Unknown customer ≠ customer with no recent history: an empty list must stay a real answer
         if (!store.knowsCustomer(customerRef)) {
-            // Unknown customer ≠ customer with no recent history: keep them distinct.
             throw new IllegalArgumentException("Unknown customerRef '" + customerRef
                     + "'. Use the exact customerRef returned by get_transaction.");
         }
-        // Clamp rather than reject: serves the intent while protecting the context budget.
+        // Clamped rather than rejected: serves the intent while protecting the context budget
         int days = clamp(lookbackDays, DEFAULT_LOOKBACK_DAYS, MAX_LOOKBACK_DAYS);
         int max = clamp(limit, DEFAULT_LIMIT, MAX_LIMIT);
         return store.customerHistory(customerRef, days, max);
@@ -101,7 +95,7 @@ public class PaymentTools {
                     required = true)
             String transactionId) {
         requireText(transactionId, "transactionId");
-        // Optional.empty() = unknown id (error); empty list = "nothing related" (valid answer).
+        // Optional.empty() = unknown id (error); empty list = "nothing related" (valid answer)
         return store.relatedTransactions(transactionId)
                 .orElseThrow(() -> unknownTransaction(transactionId));
     }
@@ -122,11 +116,12 @@ public class PaymentTools {
             String transactionId) {
         requireText(transactionId, "transactionId");
         if (!store.knowsTransaction(transactionId)) {
-            throw unknownTransaction(transactionId); // unknown id = error...
+            throw unknownTransaction(transactionId);
         }
         return store.findFulfillment(transactionId)
                 .map(FulfillmentLookupResult::of)
-                .orElseGet(FulfillmentLookupResult::none); // ...no record = a valid answer.
+                // Unknown id is an error above; no record is a valid answer the model must weigh
+                .orElseGet(FulfillmentLookupResult::none);
     }
 
     private static void requireText(String value, String paramName) {
@@ -135,7 +130,6 @@ public class PaymentTools {
         }
     }
 
-    /** Actionable message for the model — what to fix, no stack trace. */
     private static IllegalArgumentException unknownTransaction(String transactionId) {
         return new IllegalArgumentException("Unknown transactionId '" + transactionId
                 + "'. Double-check the identifier provided in the dispute; do not guess or fabricate ids.");
