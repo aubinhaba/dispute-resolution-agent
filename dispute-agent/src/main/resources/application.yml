@@ -12,6 +12,10 @@ spring:
           model: claude-haiku-4-5
           temperature: 0.0
 
+    # all-MiniLM-L6-v2 (ONNX) runs locally, so a given text always yields the same vector
+    model:
+      embedding: transformers
+
     mcp:
       client:
         name: dispute-agent
@@ -34,6 +38,13 @@ dra:
     evidence-version: "evidence-llm@v1.0.0"
     # Spring AI's tool-calling loop exposes no turn limit: this is the only bound
     max-tool-calls: 8
+    compliance-version: "compliance-rag@v1.0.0"
+  rag:
+    # candidates drives recall, top-k drives how much noise reaches the prompt
+    candidates: 50
+    top-k: 5
+    # none is the measurement control arm, not a production strategy
+    reranker: heuristic
   mcp:
     # Relative to the module directory; override with -Ddra.mcp.payment-server-jar=/absolute/path.jar
     payment-server-jar: ../mcp-payment-server/target/mcp-payment-server-0.1.0-SNAPSHOT.jar

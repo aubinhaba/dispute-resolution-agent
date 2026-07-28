@@ -1,0 +1,32 @@
+SIMPLIFIED, ILLUSTRATIVE RULE SHEETS — NOT AUTHORITATIVE NETWORK RULES
+======================================================================
+
+The Markdown files in this directory are a small, hand-written knowledge corpus
+built for this project. They imitate the SHAPE of card-scheme dispute rules
+(scope, evidence requirements, liability shift, time limits) so that the
+retrieval pipeline has something realistic to work on.
+
+They are NOT reproductions of the Visa Core Rules, the Visa Product and Service
+Rules, or the Mastercard Chargeback Guide. Reason codes, section names and
+thresholds are approximations chosen for readability. Do not use them to decide
+a real dispute, and do not quote them as scheme guidance.
+
+The real rulebooks are licensed documents published by the networks to their
+members. In a production system this directory would be replaced by the
+member's own licensed copy, and the retrieval code would not change — which is
+precisely the point of keeping the corpus outside the code.
+
+File format
+-----------
+Each *.md file starts with a YAML front matter block:
+
+    ---
+    ruleId: visa-10.4
+    network: VISA          # VISA | MASTERCARD | ANY
+    reasonCode: "10.4"     # the scheme reason code, or ANY for cross-cutting sheets
+    title: Fraud - Card-Absent Environment
+    ---
+
+followed by `##` sections. One `##` section = one indexed chunk (see
+RuleCorpusLoader). Keep sections self-contained: a chunk is retrieved and cited
+on its own, without the surrounding file.

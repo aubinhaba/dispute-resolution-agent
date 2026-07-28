@@ -39,4 +39,16 @@ class CleanArchitectureTest {
                 .because("use cases depend on abstract ports; details (LLM, MCP, I/O) live in out adapters (ADR-0001, ADR-0007)")
                 .check(CLASSES);
     }
+
+    // A whitelist, not a list of forbidden layers: it covers packages that do not exist yet
+    @Test
+    void only_adapters_know_about_spring_ai() {
+        noClasses()
+                .that().resideOutsideOfPackage("com.bino.dra.adapter..")
+                .should().dependOnClassesThat()
+                .resideInAnyPackage("org.springframework.ai..")
+                .because("the LLM, the vector store and Spring AI Documents are implementation "
+                        + "details confined to out adapters (ADR-0009, ADR-0010)")
+                .check(CLASSES);
+    }
 }

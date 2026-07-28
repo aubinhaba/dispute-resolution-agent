@@ -1,110 +1,112 @@
 # Multi-Agent Payment Dispute Resolution System
 
-A multi-agent system that analyses payment disputes (chargebacks) and produces an **auditable**
-recommendation — `REPRESENT`, `ACCEPT` or `ESCALATE` — together with its justifications (cited rules
-+ mobilised evidence).
+A multi-agent system that analyses payment disputes and returns an auditable recommendation — `REPRESENT`, `ACCEPT` or
+`ESCALATE` — together with the rules it cited and the evidence it actually fetched.
 
-The project shows how to integrate an LLM **beyond a plain API call**: typed structured output,
-output validation, a clean boundary between transactional data (MCP tools) and business rules (RAG),
-and an architecture designed for evaluation.
+## Status
 
-## Why it matters
+Work in progress, built in steps. Current base:
 
-An LLM is non-deterministic. For a financial decision, "it worked in the demo" is not enough. Three
-requirements shape the system:
+- hexagonal skeleton, locked data contract, structured output with a validation guardrail
+- `mcp-payment-server` — four read-only transactional tools over mocked data, spoken over STDIO
+- **evidence agent** — a tool-calling loop over those tools, with an attested evidence trail
+- **compliance agent** — RAG with reranking over a 15-sheet card-scheme rule corpus
 
-- **Auditability** — every decision carries `citedRulePassages` and `evidenceRefs`; a decision without
-  a trace is rejected.
-- **Reliability** — the model output is a *draft* validated against invariants before publication; the
-  system attests the metadata (`disputeId`, agent version, timestamp), the model never fabricates it.
-- **Evaluability** — business logic depends on abstract ports, so accuracy is measured by an eval
-  harness over a labelled set, never by asserting on a single LLM response.
+Next: the orchestrator, output guardrails, and the eval harness.
 
 ## Architecture
 
-Strict **Clean Architecture**, enforced by an ArchUnit test that prevents any framework from leaking
-into the domain:
+```mermaid
+flowchart LR
+    D[Dispute] --> O["Orchestrator<br/>(not built yet)"]
+    O --> E[Evidence agent]
+    O --> C[Compliance agent]
+    E -->|tool-calling loop| M[("MCP server<br/>4 read-only tools")]
+    C -->|"50 candidates → top 5"| V[("Vector store<br/>15 rule sheets")]
+    E --> DE[DecisionEngine]
+    C --> DE
+    DE --> R["DisputeDecision<br/>citedRulePassages + evidenceRefs"]
+```
+
+Until the orchestrator exists, the agents are driven by their tests rather than by a use case.
+Clean Architecture is enforced by an ArchUnit test that keeps frameworks out of the domain, and
+Spring AI out of everything but the adapters.
 
 ```
 domain/        Pure entities (contract records) — no framework
-application/   Use cases + driven ports — DecisionEngine, TransactionGateway, RuleRetriever
+application/   Use cases + driven ports — EvidenceGatherer, RuleRetriever, DecisionEngine
 adapter/out/   Implementations: LLM (Spring AI), MCP client, vector store
 ```
 
-Capability boundary (see `docs/adr/ADR-0001`):
-
 | Need | Mechanism | Port |
-|------|-----------|------|
+|---|---|---|
 | Transactional data, investigated by the model | **MCP** tool-calling loop | `EvidenceGatherer` |
 | Transactional data, fetched on a known path | **MCP** tools | `TransactionGateway` |
 | Business rules (stable corpus) | **RAG** | `RuleRetriever` |
 
-Agents are **out adapters** behind these ports, never application services (see
-`docs/adr/ADR-0009`): "agent" names an implementation technique, while the port names a business
-responsibility that a deterministic implementation could satisfy just as well.
+### What reranking is worth
 
-Architecture decisions are recorded under [`docs/adr/`](docs/adr).
+The rule corpus is built so retrieval has something to get wrong: five catalogue reason codes, six
+deliberately confusable sheets (Visa 10.4 and Mastercard 4837 both describe fraud), four
+cross-cutting ones. Over eight labelled disputes, same corpus and queries:
 
-## Stack
+| Configuration | precision@5 | Cost |
+|---|---|---|
+| No reranking (control) | 0.40 | none |
+| Heuristic reranking | **1.00** | none |
+| LLM reranking | **1.00** | one model call per dispute |
 
-- Java 21 (records, sealed types, pattern matching)
-- Spring Boot 4.1 + **Spring AI 2.0** (ChatClient, structured output, advisors, MCP)
-- MCP Java SDK 2.0
-- JUnit 5, AssertJ, ArchUnit
+The LLM reranker buys no measurable gain here, hence the deterministic default. The 1.00 carries its
+caveat, stated in `RerankComparisonIT` itself: relevance judgements are written per sheet while the
+reranker ranks by sheet membership, so metric and system share a signal — a good regression signal,
+weak evidence of absolute quality.
 
-## Run
+## Design decisions
 
-Requirements: JDK 21, Maven, and an Anthropic API key.
+Each one is recorded, with its rejected alternatives, under [`docs/adr/`](docs/adr).
+
+- **MCP for data, RAG for rules** — a tool returns an exact value for an exact key, a rule is found
+  by similarity · [ADR-0001](docs/adr/ADR-0001-mcp-vs-rag-boundary.md)
+- **The model proposes, the system attests** — every field with evidential weight is produced by the
+  system, not the model · [ADR-0004](docs/adr/ADR-0004-validated-untrusted-llm-output.md)
+- **Agents are out adapters** — "agent" names a technique, the port names a responsibility ·
+  [ADR-0009](docs/adr/ADR-0009-llm-agents-as-out-adapters.md)
+- **The tool-calling loop is delegated, not hand-written** — the framework owns the turns, this code
+  owns the budget and the trail · [ADR-0002](docs/adr/ADR-0002-framework-tool-calling-loop.md)
+- **Modular RAG blocks, not the advisor** — an advisor melts passages into the prompt and dissolves
+  the citation · [ADR-0010](docs/adr/ADR-0010-modular-rag-blocks-over-advisor.md)
+- **Local, deterministic embeddings** — reproducibility, not cost ·
+  [ADR-0011](docs/adr/ADR-0011-local-onnx-embeddings.md)
+- **Boot 4 + Spring AI 2.0**, ports in the application layer, standalone MCP server ·
+  [ADR-0006](docs/adr/ADR-0006-spring-boot-4-spring-ai-2.md) ·
+  [ADR-0007](docs/adr/ADR-0007-ports-in-application-layer.md) ·
+  [ADR-0008](docs/adr/ADR-0008-standalone-mcp-server.md)
+
+Tiered ranking, structure-aware chunking and attested citations are documented where they are
+implemented, in `adapter/out/vectorstore` and `adapter/out/agent`. Two integration tests drive the
+raw protocols by hand — `RawToolLoopDemoIT` for the tool-calling loop, `RagAdvisorDemoIT` for the
+advisor path — as executable references of what the framework does, and of what this project chose
+not to use.
+
+## Tech stack
+
+Java 21 · Spring Boot 4.1 · **Spring AI 2.0** (ChatClient, structured output, modular RAG, MCP) ·
+MCP Java SDK 2.0 · JUnit 5, AssertJ, ArchUnit
+
+## Build and test
+
+Requirements: JDK 21 and Maven. An Anthropic API key is optional.
 
 ```bash
+mvn verify                            # model-calling tests are skipped without a key
+
 export ANTHROPIC_API_KEY=sk-ant-...   # read from the environment, never committed
-
-mvn verify
+mvn verify                            # adds the tests that make real model calls
 ```
 
-The integration smoke test (a real model call) runs only when `ANTHROPIC_API_KEY` is set; without a
-key it is disabled and the build stays green.
-
-The `mcp-payment-server` module needs no API key: it exposes tools, it never calls a model. Its unit
-tests validate the four tools directly, and it packages as a standalone STDIO server:
-
-```bash
-mvn -pl mcp-payment-server package
-```
-
-## The evidence agent
-
-`LlmEvidenceAgent` is where the system stops calling an LLM and starts integrating one. Given a
-dispute, it runs a **tool-calling loop** over the MCP server: the model decides which tools to call,
-in which order, and when to stop — a fraud reason code leads to risk signals and customer history, a
-"goods not received" one leads to delivery proof. The model only ever emits an intent; this code
-performs the calls, so its reach is exactly what the read-only tools expose.
-
-Delegating the path does not mean giving up control. Three guarantees surround the loop:
-
-- **Attested evidence.** `evidenceRefs` is derived from the tool calls that actually executed, never
-  from what the model says it consulted. An audit trail must be a record, not a testimony — so
-  `EvidenceDraft` (what the model may produce) carries only the narrative, while the identifiers,
-  the tools used and the budget state come from `ToolCallRecorder`.
-- **A context budget.** Spring AI's loop has no turn cap, so `RecordingToolCallback` enforces one.
-  Past the cap it returns a stop message to the model rather than throwing: degrade instead of
-  breaking, and flag the bundle as possibly incomplete.
-- **Compression.** Raw tool payloads never leave the agent; only a summary, the findings and the
-  references cross the boundary, so adding an agent does not inflate every other agent's context.
-
-`RawToolLoopDemoIT` drives the same investigation by hand, turn by turn, as an executable reference
-of the raw protocol.
-
-## Status
-
-Work in progress, built in steps. The current base covers the hexagonal skeleton, the data contract,
-the first structured-output LLM call and its validation guardrail, a read-only MCP tools server
-exposing four transactional tools (`get_transaction`, `get_customer_history`,
-`get_related_transactions`, `get_fulfillment_record`) over mocked data via STDIO, and the evidence
-agent that consumes them through a tool-calling loop.
-
-Next: the compliance agent (RAG over card-scheme reason codes, with reranking), the orchestrator,
-output guardrails and the eval harness.
+Retrieval measurements are never gated: embeddings run locally, so RAG quality is verifiable
+offline. `mcp-payment-server` needs no key either — it exposes tools, it never calls a model — and
+packages as a standalone STDIO server that the agent launches as a subprocess.
 
 ## License
 
