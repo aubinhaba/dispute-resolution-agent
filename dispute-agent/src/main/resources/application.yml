@@ -39,6 +39,11 @@ dra:
     # Spring AI's tool-calling loop exposes no turn limit: this is the only bound
     max-tool-calls: 8
     compliance-version: "compliance-rag@v1.0.0"
+  orchestrator:
+    # 1000.00 EUR in minor units; a business threshold gets renegotiated, so config not a constant
+    escalation-threshold-minor-units: 100000
+    # Distinct from decision-llm@...: marks the decisions taken with no model involved
+    version: "orchestrator@v1.0.0"
   rag:
     # candidates drives recall, top-k drives how much noise reaches the prompt
     candidates: 50

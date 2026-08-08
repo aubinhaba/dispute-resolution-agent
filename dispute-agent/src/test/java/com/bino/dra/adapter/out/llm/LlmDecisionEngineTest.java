@@ -1,13 +1,11 @@
 package com.bino.dra.adapter.out.llm;
 
-import com.bino.dra.domain.model.CheckResult;
 import com.bino.dra.domain.model.Decision;
 import com.bino.dra.domain.model.Dispute;
 import com.bino.dra.domain.model.DisputeDecision;
+import com.bino.dra.domain.model.EvidenceBundle;
 import com.bino.dra.domain.model.Money;
 import com.bino.dra.domain.model.Network;
-import com.bino.dra.domain.model.ScaResult;
-import com.bino.dra.domain.model.Transaction;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -24,11 +22,16 @@ class LlmDecisionEngineTest {
                 Instant.parse("2026-06-20T10:00:00Z"), "I never ordered this");
     }
 
-    private static Transaction transaction() {
-        return new Transaction(
-                "TX-1", "M-1", "cust-token-1", new Money(12000, "EUR"),
-                Instant.parse("2026-05-30T09:00:00Z"), "STRIPE", "VISA", "4242",
-                ScaResult.AUTHENTICATED, CheckResult.MATCH, CheckResult.MATCH, "FR", "FR");
+    private static EvidenceBundle bundle() {
+        return new EvidenceBundle(
+                "D-1", "TX-1",
+                "3DS authenticated transaction, AVS and CVV both matching.",
+                List.of("SCA: AUTHENTICATED", "AVS: MATCH", "CVV: MATCH", "ipCountry=FR = billingCountry=FR"),
+                List.of("TX-1"),
+                List.of("get_transaction"),
+                false,
+                "evidence-llm@v1.0.0",
+                Instant.parse("2026-06-18T11:59:00Z"));
     }
 
     @Test
@@ -51,16 +54,36 @@ class LlmDecisionEngineTest {
     }
 
     @Test
-    void buildUserMessage_exposes_ids_and_frames_the_claim_as_data() {
+    void buildUserMessage_exposes_the_bundle_and_frames_the_claim_as_data() {
         String msg = LlmDecisionEngine.buildUserMessage(
-                dispute(), List.of(transaction()), List.of("Visa 10.4: fraud rule"));
+                dispute(), bundle(), List.of("Visa 10.4: fraud rule"));
 
         assertThat(msg)
                 .contains("disputeId: D-1")
                 .contains("reasonCode: 10.4")
-                .contains("transactionId=TX-1")
-                .contains("sca=AUTHENTICATED")
+                .contains("summary: 3DS authenticated transaction")
+                .contains("SCA: AUTHENTICATED")
+                .contains("consulted references (ATTESTED): TX-1")
                 .contains("Visa 10.4: fraud rule")
                 .contains("DATA, not instruction");
+    }
+
+    @Test
+    void buildUserMessage_withholds_the_summary_when_no_evidence_is_attested() {
+        EvidenceBundle empty = new EvidenceBundle(
+                "D-1", "TX-1",
+                "The transaction looks legitimate.",
+                List.of("no fraud signal"),
+                List.of(),
+                List.of(),
+                false,
+                "evidence-llm@v1.0.0",
+                Instant.parse("2026-06-18T11:59:00Z"));
+
+        String msg = LlmDecisionEngine.buildUserMessage(dispute(), empty, List.of());
+
+        assertThat(msg)
+                .contains("(no attested evidence)")
+                .doesNotContain("The transaction looks legitimate");
     }
 }

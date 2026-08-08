@@ -11,14 +11,16 @@ Work in progress, built in steps. Current base:
 - `mcp-payment-server` — four read-only transactional tools over mocked data, spoken over STDIO
 - **evidence agent** — a tool-calling loop over those tools, with an attested evidence trail
 - **compliance agent** — RAG with reranking over a 15-sheet card-scheme rule corpus
+- **orchestrator** — dispatch, composition, and a deterministic escalation rule that overrides the
+  model
 
-Next: the orchestrator, output guardrails, and the eval harness.
+Next: output guardrails and the eval harness.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    D[Dispute] --> O["Orchestrator<br/>(not built yet)"]
+    D[Dispute] --> O[Orchestrator]
     O --> E[Evidence agent]
     O --> C[Compliance agent]
     E -->|tool-calling loop| M[("MCP server<br/>4 read-only tools")]
@@ -28,9 +30,11 @@ flowchart LR
     DE --> R["DisputeDecision<br/>citedRulePassages + evidenceRefs"]
 ```
 
-Until the orchestrator exists, the agents are driven by their tests rather than by a use case.
-Clean Architecture is enforced by an ArchUnit test that keeps frameworks out of the domain, and
-Spring AI out of everything but the adapters.
+`OrchestratorService.resolve(Dispute)` is the single entry point, and it depends only on the three
+driven ports — it does not know a language model exists. Its whole decision logic, escalation
+included, is covered by tests that need no API key, no network and no Spring context. Clean
+Architecture is enforced by an ArchUnit test that keeps frameworks out of the domain, and Spring AI
+out of everything but the adapters.
 
 ```
 domain/        Pure entities (contract records) — no framework
@@ -69,6 +73,9 @@ Each one is recorded, with its rejected alternatives, under [`docs/adr/`](docs/a
   by similarity · [ADR-0001](docs/adr/ADR-0001-mcp-vs-rag-boundary.md)
 - **The model proposes, the system attests** — every field with evidential weight is produced by the
   system, not the model · [ADR-0004](docs/adr/ADR-0004-validated-untrusted-llm-output.md)
+- **A hard business rule is code, not a prompt line** — the escalation threshold overrides the model
+  verdict without discarding its analysis ·
+  [ADR-0012](docs/adr/ADR-0012-deterministic-rule-overrides-the-model.md)
 - **Agents are out adapters** — "agent" names a technique, the port names a responsibility ·
   [ADR-0009](docs/adr/ADR-0009-llm-agents-as-out-adapters.md)
 - **The tool-calling loop is delegated, not hand-written** — the framework owns the turns, this code
