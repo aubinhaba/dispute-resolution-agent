@@ -11,10 +11,12 @@ Work in progress, built in steps. Current base:
 - `mcp-payment-server` — four read-only transactional tools over mocked data, spoken over STDIO
 - **evidence agent** — a tool-calling loop over those tools, with an attested evidence trail
 - **compliance agent** — RAG with reranking over a 15-sheet card-scheme rule corpus
-- **orchestrator** — dispatch, composition, and a deterministic escalation rule that overrides the
-  model
+- **orchestrator** — dispatch, composition, and two deterministic rules that override the model:
+  the disputed amount, and the representment deadline
+- **guardrails** — PAN screening on the way in, attested citations and a single repair round-trip
+  on the way out; a failure that survives repair becomes a motivated `ESCALATE`, never an exception
 
-Next: output guardrails and the eval harness.
+Next: the eval harness.
 
 ## Architecture
 
@@ -45,8 +47,27 @@ adapter/out/   Implementations: LLM (Spring AI), MCP client, vector store
 | Need | Mechanism | Port |
 |---|---|---|
 | Transactional data, investigated by the model | **MCP** tool-calling loop | `EvidenceGatherer` |
-| Transactional data, fetched on a known path | **MCP** tools | `TransactionGateway` |
 | Business rules (stable corpus) | **RAG** | `RuleRetriever` |
+
+### What the system attests, and what it merely checks
+
+Both audit fields are anchored, but by **two different mechanisms**, and the difference is the
+interesting part.
+
+`evidenceRefs` is **rewritten** by the orchestrator from the observed tool trail. The system can
+produce that fact itself, so whatever identifiers the model claims to have used are discarded.
+
+`citedRulePassages` is only **verified**. The retriever stamps each passage with its chunk id —
+`[visa-10.4#liability-shift]` — and the validator refuses any citation whose leading id is missing
+or absent from the retrieved set; one repair round-trip asks for it again. The field is deliberately
+*not* overwritten with the five retrieved passages: that would yield a citation always valid and
+never informative, because it would no longer say which passage the model actually relied on. That
+selection is the only trace of the compliance reasoning.
+
+The distinction is not cosmetic. Evidence is something the system can generate; a citation is a
+choice that belongs to the model, and a choice can only be checked. Until the output guardrails
+existed, `citedRulePassages` was not anchored at all — the model copied the passage in its own words
+and dropped the id. `OrchestratorIT` asserts, against a live model, that it no longer does.
 
 ### What reranking is worth
 
@@ -73,9 +94,11 @@ Each one is recorded, with its rejected alternatives, under [`docs/adr/`](docs/a
   by similarity · [ADR-0001](docs/adr/ADR-0001-mcp-vs-rag-boundary.md)
 - **The model proposes, the system attests** — every field with evidential weight is produced by the
   system, not the model · [ADR-0004](docs/adr/ADR-0004-validated-untrusted-llm-output.md)
-- **A hard business rule is code, not a prompt line** — the escalation threshold overrides the model
-  verdict without discarding its analysis ·
+- **A hard business rule is code, not a prompt line** — the escalation threshold and the
+  representment deadline override the model verdict without discarding its analysis ·
   [ADR-0012](docs/adr/ADR-0012-deterministic-rule-overrides-the-model.md)
+- **A validation failure is a decision, not an exception** — one repair round-trip, then a motivated
+  `ESCALATE` · [ADR-0014](docs/adr/ADR-0014-validation-failure-becomes-an-escalate.md)
 - **Agents are out adapters** — "agent" names a technique, the port names a responsibility ·
   [ADR-0009](docs/adr/ADR-0009-llm-agents-as-out-adapters.md)
 - **The tool-calling loop is delegated, not hand-written** — the framework owns the turns, this code

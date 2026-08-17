@@ -1,6 +1,7 @@
 package com.bino.dra.adapter.out.llm;
 
 import com.bino.dra.application.port.out.DecisionEngine;
+import com.bino.dra.domain.model.Decision;
 import com.bino.dra.domain.model.Dispute;
 import com.bino.dra.domain.model.DisputeDecision;
 import com.bino.dra.domain.model.EvidenceBundle;
@@ -31,7 +32,7 @@ public class LlmDecisionEngine implements DecisionEngine {
             DraftValidator validator,
             Clock clock,
             @Value("${dra.agent.decision-version}") String agentVersion,
-            @Value("classpath:prompts/decision/decide.v1.0.0.md") Resource decisionPrompt) {
+            @Value("classpath:prompts/decision/decide.v1.1.0.md") Resource decisionPrompt) {
         this.chatClient = chatClientBuilder.build();
         this.validator = validator;
         this.clock = clock;
@@ -42,16 +43,73 @@ public class LlmDecisionEngine implements DecisionEngine {
     @Override
     public DisputeDecision decide(Dispute dispute, EvidenceBundle evidence, List<String> rulePassages) {
         String userMessage = buildUserMessage(dispute, evidence, rulePassages);
+        Instant decidedAt = clock.instant();
 
-        DecisionDraft draft = chatClient.prompt()
+        try {
+            DecisionDraft draft = ask(userMessage);
+            validator.validate(draft, rulePassages);
+            return compose(dispute, draft, agentVersion, decidedAt);
+        } catch (OutputValidationException firstAttempt) {
+            return repairOnce(dispute, rulePassages, userMessage, firstAttempt, decidedAt);
+        }
+    }
+
+    // One round-trip, never a loop: unbounded cost, and a second miss predicts a fifth (ADR-0014)
+    private DisputeDecision repairOnce(Dispute dispute, List<String> rulePassages, String userMessage,
+                                       OutputValidationException firstAttempt, Instant decidedAt) {
+        try {
+            DecisionDraft repaired = ask(repairMessage(userMessage, firstAttempt.violations()));
+            validator.validate(repaired, rulePassages);
+            return compose(dispute, repaired, agentVersion + "+repaired", decidedAt);
+        } catch (OutputValidationException terminalFailure) {
+            return escalateAfterFailedRepair(dispute, rulePassages, terminalFailure.violations(),
+                    agentVersion + "+repair-failed", decidedAt);
+        }
+    }
+
+    private DecisionDraft ask(String userMessage) {
+        return chatClient.prompt()
                 .system(systemPrompt)
                 .user(userMessage)
                 .call()
                 .entity(DecisionDraft.class);
+    }
 
-        validator.validate(draft);
+    // The original message is resent in full: the model has no memory between two calls
+    static String repairMessage(String originalMessage, List<String> violations) {
+        StringBuilder sb = new StringBuilder(originalMessage);
+        sb.append("\n# Correction required\n")
+                .append("Your previous answer was REJECTED by automated validation. ")
+                .append("Violations found:\n");
+        for (String violation : violations) {
+            sb.append("- ").append(violation).append('\n');
+        }
+        sb.append("""
 
-        return compose(dispute, draft, agentVersion, clock.instant());
+                Redo the SAME analysis and fix only these points:
+                - every "citedRulePassages" entry must START with the bracketed identifier, copied
+                  verbatim from the rules provided above;
+                - "evidenceRefs" may only contain identifiers present in the evidence provided above;
+                - "citedReasonCode" must be the reason code of the dispute.
+                """);
+        return sb.toString();
+    }
+
+    static DisputeDecision escalateAfterFailedRepair(Dispute dispute, List<String> rulePassages,
+                                                     List<String> violations, String agentVersion,
+                                                     Instant decidedAt) {
+        return new DisputeDecision(
+                dispute.disputeId(),
+                Decision.ESCALATE,
+                0.0,
+                "[AUTOMATIC ESCALATION - invalid model output after repair] Persistent violations: "
+                        + String.join(" | ", violations)
+                        + ". No usable decision could be produced. Human review required.",
+                dispute.reasonCode(),
+                rulePassages,
+                List.of(),
+                agentVersion,
+                decidedAt);
     }
 
     static DisputeDecision compose(Dispute dispute, DecisionDraft draft, String agentVersion, Instant decidedAt) {

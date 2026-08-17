@@ -34,7 +34,7 @@ spring:
 
 dra:
   agent:
-    decision-version: "decision-llm@v1.0.0"
+    decision-version: "decision-llm@v1.1.0"
     evidence-version: "evidence-llm@v1.0.0"
     # Spring AI's tool-calling loop exposes no turn limit: this is the only bound
     max-tool-calls: 8
@@ -42,8 +42,12 @@ dra:
   orchestrator:
     # 1000.00 EUR in minor units; a business threshold gets renegotiated, so config not a constant
     escalation-threshold-minor-units: 100000
+    # Calendar days, not business days - the rule corpus says so explicitly
+    representment-min-days-remaining: 3
     # Distinct from decision-llm@...: marks the decisions taken with no model involved
     version: "orchestrator@v1.0.0"
+  validation:
+    known-reason-codes: "10.4,11.3,12.6,13.1,13.2,13.3,4808,4834,4837,4853,4855"
   rag:
     # candidates drives recall, top-k drives how much noise reaches the prompt
     candidates: 50

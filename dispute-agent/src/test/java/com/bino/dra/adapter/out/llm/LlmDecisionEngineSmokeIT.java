@@ -40,9 +40,11 @@ class LlmDecisionEngineSmokeIT {
                 "evidence-llm@v1.0.0",
                 Instant.now());
 
+        // Hand-written passages without the RuleRetriever prefix can never be attested (ADR-0014)
         List<String> rules = List.of(
-                "Visa reason code 10.4 (card-absent fraud): if 3-D Secure authentication succeeded, "
-                        + "liability shifts to the issuer — the merchant may represent.");
+                "[visa-10.4#liability-shift] Fraud - Card-Absent Environment - Liability shift: "
+                        + "if 3-D Secure authentication succeeded, liability shifts to the issuer, "
+                        + "so the merchant may represent.");
 
         DisputeDecision decision = engine.decide(dispute, bundle, rules);
 
@@ -52,7 +54,9 @@ class LlmDecisionEngineSmokeIT {
         assertThat(decision.confidence()).isBetween(0.0, 1.0);
         assertThat(decision.evidenceRefs()).isNotEmpty();
         assertThat(decision.citedReasonCode()).isEqualTo("10.4");
-        assertThat(decision.agentVersion()).isEqualTo("decision-llm@v1.0.0");
+        assertThat(decision.agentVersion()).startsWith("decision-llm@v1.1.0");
         assertThat(decision.decidedAt()).isNotNull();
+        assertThat(decision.citedRulePassages())
+                .allSatisfy(passage -> assertThat(passage).matches("^\\[[^\\]]+].*"));
     }
 }

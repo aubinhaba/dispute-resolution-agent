@@ -10,6 +10,7 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.time.Duration;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,7 +25,8 @@ class OrchestratorIT {
     private static Dispute dispute(String id, String txnId, String reasonCode, long minorUnits, String claim) {
         return new Dispute(
                 id, txnId, "MERCH-ELEC-01", Network.VISA, reasonCode,
-                new Money(minorUnits, "EUR"), Instant.now(), Instant.now().plusSeconds(86_400), claim);
+                // 30 days, not 1: below the margin the deadline rule would capture every case here
+                new Money(minorUnits, "EUR"), Instant.now(), Instant.now().plus(Duration.ofDays(30)), claim);
     }
 
     @Test
@@ -40,7 +42,9 @@ class OrchestratorIT {
         assertThat(decision.decidedAt()).isNotNull();
         assertThat(decision.evidenceRefs()).contains("TXN-EVAL-002");
         assertThat(decision.citedRulePassages()).isNotEmpty();
-        assertThat(decision.citedRulePassages()).allSatisfy(p -> assertThat(p).isNotBlank());
+        // The anchor survives the model: this assertion failed before the output guardrail existed
+        assertThat(decision.citedRulePassages())
+                .allSatisfy(p -> assertThat(p).matches("^\\[[^\\]]+].*"));
         assertThat(decision.citedReasonCode()).isEqualTo("10.4");
         assertThat(decision.rationale()).isNotBlank();
     }
@@ -56,7 +60,8 @@ class OrchestratorIT {
         assertThat(decision.rationale()).startsWith("[AUTOMATIC ESCALATION");
         assertThat(decision.evidenceRefs()).contains("TXN-EVAL-004");
         assertThat(decision.citedRulePassages()).isNotEmpty();
-        assertThat(decision.agentVersion()).isEqualTo("decision-llm@v1.0.0");
+        // startsWith: the version carries a suffix when the output had to be repaired (ADR-0014)
+        assertThat(decision.agentVersion()).startsWith("decision-llm@v1.1.0");
     }
 
     @Test

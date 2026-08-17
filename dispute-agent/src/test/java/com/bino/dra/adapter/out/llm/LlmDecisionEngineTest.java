@@ -86,4 +86,41 @@ class LlmDecisionEngineTest {
                 .contains("(no attested evidence)")
                 .doesNotContain("The transaction looks legitimate");
     }
+
+    @Test
+    void repairMessage_resends_the_original_message_plus_the_violations() {
+        String original = LlmDecisionEngine.buildUserMessage(
+                dispute(), bundle(), List.of("[visa-10.4#liability-shift] ..."));
+
+        String repair = LlmDecisionEngine.repairMessage(original,
+                List.of("unattested citedRulePassage: Fraud - Card-Absent...",
+                        "confidence out of [0,1]: 1.4"));
+
+        assertThat(repair).startsWith(original);
+        assertThat(repair)
+                .contains("REJECTED")
+                .contains("unattested citedRulePassage")
+                .contains("confidence out of [0,1]: 1.4");
+    }
+
+    @Test
+    void a_failed_repair_produces_an_auditable_decision_rather_than_an_exception() {
+        List<String> retrievedRules = List.of("[visa-10.4#liability-shift] Liability shift: ...");
+        Instant decidedAt = Instant.parse("2026-06-18T12:00:00Z");
+
+        DisputeDecision decision = LlmDecisionEngine.escalateAfterFailedRepair(
+                dispute(), retrievedRules, List.of("unattested citedRulePassage: ..."),
+                "decision-llm@v1.1.0+repair-failed", decidedAt);
+
+        assertThat(decision.decision()).isEqualTo(Decision.ESCALATE);
+        assertThat(decision.rationale())
+                .startsWith("[AUTOMATIC ESCALATION")
+                .contains("unattested citedRulePassage");
+        assertThat(decision.citedRulePassages()).isEqualTo(retrievedRules);
+        assertThat(decision.evidenceRefs()).isEmpty();
+        assertThat(decision.agentVersion()).isEqualTo("decision-llm@v1.1.0+repair-failed");
+        assertThat(decision.confidence()).isEqualTo(0.0);
+        assertThat(decision.disputeId()).isEqualTo("D-1");
+        assertThat(decision.decidedAt()).isEqualTo(decidedAt);
+    }
 }
