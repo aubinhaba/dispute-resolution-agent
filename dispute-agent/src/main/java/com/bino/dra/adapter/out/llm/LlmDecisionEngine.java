@@ -32,7 +32,7 @@ public class LlmDecisionEngine implements DecisionEngine {
             DraftValidator validator,
             Clock clock,
             @Value("${dra.agent.decision-version}") String agentVersion,
-            @Value("classpath:prompts/decision/decide.v1.1.0.md") Resource decisionPrompt) {
+            @Value("classpath:prompts/decision/decide.v1.2.0.md") Resource decisionPrompt) {
         this.chatClient = chatClientBuilder.build();
         this.validator = validator;
         this.clock = clock;

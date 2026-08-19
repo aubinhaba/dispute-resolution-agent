@@ -61,7 +61,7 @@ class OrchestratorIT {
         assertThat(decision.evidenceRefs()).contains("TXN-EVAL-004");
         assertThat(decision.citedRulePassages()).isNotEmpty();
         // startsWith: the version carries a suffix when the output had to be repaired (ADR-0014)
-        assertThat(decision.agentVersion()).startsWith("decision-llm@v1.1.0");
+        assertThat(decision.agentVersion()).startsWith("decision-llm@v1.2.0");
     }
 
     @Test

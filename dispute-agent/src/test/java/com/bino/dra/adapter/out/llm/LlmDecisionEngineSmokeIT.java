@@ -54,7 +54,7 @@ class LlmDecisionEngineSmokeIT {
         assertThat(decision.confidence()).isBetween(0.0, 1.0);
         assertThat(decision.evidenceRefs()).isNotEmpty();
         assertThat(decision.citedReasonCode()).isEqualTo("10.4");
-        assertThat(decision.agentVersion()).startsWith("decision-llm@v1.1.0");
+        assertThat(decision.agentVersion()).startsWith("decision-llm@v1.2.0");
         assertThat(decision.decidedAt()).isNotNull();
         assertThat(decision.citedRulePassages())
                 .allSatisfy(passage -> assertThat(passage).matches("^\\[[^\\]]+].*"));

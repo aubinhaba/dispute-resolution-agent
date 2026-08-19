@@ -16,6 +16,16 @@ spring:
     model:
       embedding: transformers
 
+    embedding:
+      transformer:
+        tokenizer:
+          # The jar ships a real tokenizer.json but its model.onnx is a 133-byte Git LFS pointer
+          uri: classpath:/onnx/all-MiniLM-L6-v2/tokenizer.json
+        cache:
+          # Aligns with the directory a bare TransformersEmbeddingModel uses, otherwise the same
+          # model is cached twice and one of the two paths re-downloads 86 MB on every run
+          directory: ${java.io.tmpdir}/spring-ai-onnx-generative
+
     mcp:
       client:
         name: dispute-agent
@@ -34,7 +44,7 @@ spring:
 
 dra:
   agent:
-    decision-version: "decision-llm@v1.1.0"
+    decision-version: "decision-llm@v1.2.0"
     evidence-version: "evidence-llm@v1.0.0"
     # Spring AI's tool-calling loop exposes no turn limit: this is the only bound
     max-tool-calls: 8

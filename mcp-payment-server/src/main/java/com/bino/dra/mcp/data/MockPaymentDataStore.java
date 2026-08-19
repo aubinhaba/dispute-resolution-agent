@@ -23,6 +23,7 @@ public class MockPaymentDataStore {
     private static final String SCA_NOT_AUTHENTICATED = "NOT_AUTHENTICATED";
     private static final String MATCH = "MATCH";
     private static final String MISMATCH = "MISMATCH";
+    private static final String NOT_CHECKED = "NOT_CHECKED";
 
     private final Clock clock;
     private final Map<String, TransactionDto> transactionsById;
@@ -62,7 +63,43 @@ public class MockPaymentDataStore {
                 txn("TXN-EVAL-004", "MERCH-LUX-03", "CUST-B2RH8", 150000, daysAgo(now, 10),
                         "WORLDLINE", "VISA", "7005", SCA_AUTHENTICATED, MATCH, MATCH, "DE", "DE"),
                 txn("TXN-H-B2RH8-1", "MERCH-LUX-03", "CUST-B2RH8", 89000, daysAgo(now, 55),
-                        "WORLDLINE", "VISA", "7005", SCA_AUTHENTICATED, MATCH, MATCH, "DE", "DE"));
+                        "WORLDLINE", "VISA", "7005", SCA_AUTHENTICATED, MATCH, MATCH, "DE", "DE"),
+
+                txn("TXN-EVAL-005", "MERCH-ELEC-01", "CUST-T8LV4", 9500, daysAgo(now, 18),
+                        "STRIPE", "MASTERCARD", "5309", SCA_AUTHENTICATED, MATCH, MATCH, "FR", "FR"),
+                txn("TXN-H-T8LV4-1", "MERCH-ELEC-01", "CUST-T8LV4", 4200, daysAgo(now, 66),
+                        "STRIPE", "MASTERCARD", "5309", SCA_AUTHENTICATED, MATCH, MATCH, "FR", "FR"),
+                txn("TXN-H-T8LV4-2", "MERCH-ELEC-01", "CUST-T8LV4", 11300, daysAgo(now, 39),
+                        "STRIPE", "MASTERCARD", "5309", SCA_AUTHENTICATED, MATCH, MATCH, "FR", "FR"),
+
+                txn("TXN-EVAL-006", "MERCH-FASHION-02", "CUST-W3ND6", 6700, daysAgo(now, 25),
+                        "ADYEN", "MASTERCARD", "2647", SCA_ATTEMPTED, MATCH, NOT_CHECKED, "FR", "FR"),
+
+                txn("TXN-EVAL-007", "MERCH-ELEC-01", "CUST-R5DQ2", 6200, daysAgo(now, 12),
+                        "STRIPE", "VISA", "3391", SCA_ATTEMPTED, MISMATCH, MISMATCH, "NG", "FR"),
+                txn("TXN-EVAL-008", "MERCH-ELEC-01", "CUST-J7KE5", 3400, daysAgo(now, 16),
+                        "STRIPE", "VISA", "8820", SCA_AUTHENTICATED, MATCH, MATCH, "FR", "FR"),
+                txn("TXN-H-J7KE5-1", "MERCH-ELEC-01", "CUST-J7KE5", 2900, daysAgo(now, 58),
+                        "STRIPE", "VISA", "8820", SCA_AUTHENTICATED, MATCH, MATCH, "FR", "FR"),
+                txn("TXN-EVAL-009", "MERCH-FASHION-02", "CUST-P2WS8", 5500, daysAgo(now, 22),
+                        "ADYEN", "VISA", "6714", SCA_ATTEMPTED, MATCH, MATCH, "FR", "FR"),
+                txn("TXN-EVAL-010", "MERCH-FASHION-02", "CUST-V4HM7", 7300, daysAgo(now, 27),
+                        "ADYEN", "VISA", "1052", SCA_AUTHENTICATED, MATCH, MATCH, "FR", "FR"),
+                txn("TXN-EVAL-011", "MERCH-ELEC-01", "CUST-Z9BF1", 8100, daysAgo(now, 14),
+                        "STRIPE", "MASTERCARD", "4478", SCA_NOT_AUTHENTICATED, MISMATCH, MATCH, "RO", "FR"),
+                txn("TXN-EVAL-012", "MERCH-FASHION-02", "CUST-D6NK4", 4900, daysAgo(now, 31),
+                        "ADYEN", "MASTERCARD", "9163", SCA_AUTHENTICATED, MATCH, MATCH, "FR", "FR"),
+                txn("TXN-H-D6NK4-1", "MERCH-FASHION-02", "CUST-D6NK4", 3600, daysAgo(now, 70),
+                        "ADYEN", "MASTERCARD", "9163", SCA_AUTHENTICATED, MATCH, MATCH, "FR", "FR"),
+                txn("TXN-EVAL-013", "MERCH-FASHION-02", "CUST-L1TG9", 5200, daysAgo(now, 19),
+                        "ADYEN", "MASTERCARD", "7735", SCA_ATTEMPTED, NOT_CHECKED, NOT_CHECKED, "FR", "FR"),
+                txn("TXN-EVAL-014", "MERCH-FASHION-02", "CUST-X8CR6", 9100, daysAgo(now, 29),
+                        "ADYEN", "MASTERCARD", "5501", SCA_AUTHENTICATED, MATCH, MATCH, "FR", "FR"),
+
+                txn("TXN-EVAL-015", "MERCH-LUX-03", "CUST-N3QY7", 250000, daysAgo(now, 8),
+                        "WORLDLINE", "VISA", "6640", SCA_AUTHENTICATED, MATCH, MATCH, "FR", "FR"),
+                txn("TXN-EVAL-016", "MERCH-LUX-03", "CUST-H5JB2", 180000, daysAgo(now, 11),
+                        "WORLDLINE", "MASTERCARD", "3308", SCA_AUTHENTICATED, MATCH, MATCH, "DE", "DE"));
 
         this.transactionsById = all.stream()
                 .collect(Collectors.toUnmodifiableMap(TransactionDto::transactionId, t -> t));
@@ -75,14 +112,28 @@ public class MockPaymentDataStore {
                 "TXN-EVAL-001", List.of(),
                 "TXN-EVAL-002", List.of("TXN-H-M4XA1-1", "TXN-H-M4XA1-2", "TXN-H-M4XA1-3", "TXN-H-M4XA1-4"),
                 "TXN-EVAL-003", List.of("TXN-H-K9PT3-1"),
-                "TXN-EVAL-004", List.of("TXN-H-B2RH8-1"));
+                "TXN-EVAL-004", List.of("TXN-H-B2RH8-1"),
+                "TXN-EVAL-005", List.of("TXN-H-T8LV4-1", "TXN-H-T8LV4-2"),
+                "TXN-EVAL-006", List.of(),
+                // A missing key on a KNOWN transaction yields an empty list, which is not "unknown"
+                "TXN-EVAL-008", List.of("TXN-H-J7KE5-1"),
+                "TXN-EVAL-012", List.of("TXN-H-D6NK4-1"));
 
         // Physical goods only: no record for EVAL-001/002 (digital) is data, not a gap
         this.fulfillmentByTransaction = Map.of(
                 "TXN-EVAL-003", new FulfillmentRecordDto("TXN-EVAL-003", true,
                         iso(daysAgo(now, 28)), "TRK-FR-88123901", "DELIVERED"),
                 "TXN-EVAL-004", new FulfillmentRecordDto("TXN-EVAL-004", true,
-                        iso(daysAgo(now, 7)), "TRK-DE-55201148", "DELIVERED"));
+                        iso(daysAgo(now, 7)), "TRK-DE-55201148", "DELIVERED"),
+                // SHIPPED is not DELIVERED: separates reading the status from reading "a record exists"
+                "TXN-EVAL-009", new FulfillmentRecordDto("TXN-EVAL-009", true,
+                        iso(daysAgo(now, 20)), "TRK-FR-77410256", "IN_TRANSIT"),
+                "TXN-EVAL-010", new FulfillmentRecordDto("TXN-EVAL-010", true,
+                        iso(daysAgo(now, 25)), "TRK-FR-31905744", "DELIVERED"),
+                "TXN-EVAL-012", new FulfillmentRecordDto("TXN-EVAL-012", true,
+                        iso(daysAgo(now, 29)), "TRK-FR-60238815", "DELIVERED"),
+                "TXN-EVAL-014", new FulfillmentRecordDto("TXN-EVAL-014", true,
+                        iso(daysAgo(now, 27)), "TRK-FR-49572630", "DELIVERED"));
     }
 
     public Optional<TransactionDto> findTransaction(String transactionId) {

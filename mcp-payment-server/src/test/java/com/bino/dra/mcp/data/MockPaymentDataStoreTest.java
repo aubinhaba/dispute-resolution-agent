@@ -90,6 +90,32 @@ class MockPaymentDataStoreTest {
             assertThat(store.findFulfillment("TXN-EVAL-001")).isEmpty();
             assertThat(store.findFulfillment("TXN-EVAL-002")).isEmpty();
         }
+
+        @Test
+        @DisplayName("EVAL-005 (-> REPRESENT): Mastercard 4837, 3DS authenticated, customer with history")
+        void eval005_isMastercardWithLiabilityShift() {
+            TransactionDto txn = store.findTransaction("TXN-EVAL-005").orElseThrow();
+
+            assertThat(txn.cardBrand()).isEqualTo("MASTERCARD");
+            assertThat(txn.scaResult()).isEqualTo("AUTHENTICATED");
+            assertThat(store.customerHistory(txn.customerRef(), 90, 20)).hasSize(3);
+        }
+
+        @Test
+        @DisplayName("EVAL-006 (-> ACCEPT): Mastercard 4855, physical goods with NO delivery proof")
+        void eval006_isMastercardWithoutDeliveryProof() {
+            TransactionDto txn = store.findTransaction("TXN-EVAL-006").orElseThrow();
+
+            assertThat(txn.cardBrand()).isEqualTo("MASTERCARD");
+            assertThat(store.findFulfillment("TXN-EVAL-006")).isEmpty();
+        }
+
+        @Test
+        @DisplayName("both card networks are exercised — the Mastercard path is no longer theoretical")
+        void bothCardNetworksAreExercised() {
+            assertThat(store.findTransaction("TXN-EVAL-002").orElseThrow().cardBrand()).isEqualTo("VISA");
+            assertThat(store.findTransaction("TXN-EVAL-005").orElseThrow().cardBrand()).isEqualTo("MASTERCARD");
+        }
     }
 
     @Nested
