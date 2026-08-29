@@ -9,6 +9,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -20,6 +21,11 @@ import java.util.StringJoiner;
 
 @Component
 public class LlmDecisionEngine implements DecisionEngine {
+
+    // Worded like a validator violation: it is copied verbatim into the repair message
+    private static final String NON_JSON_VIOLATION =
+            "the answer was not usable JSON: reply ONLY with a JSON object matching the schema, "
+                    + "with no introduction and no markdown fence";
 
     private final ChatClient chatClient;
     private final DraftValidator validator;
@@ -51,6 +57,10 @@ public class LlmDecisionEngine implements DecisionEngine {
             return compose(dispute, draft, agentVersion, decidedAt);
         } catch (OutputValidationException firstAttempt) {
             return repairOnce(dispute, rulePassages, userMessage, firstAttempt, decidedAt);
+        } catch (JacksonException unparsableResponse) {
+            // Prose instead of JSON: nothing deserialised, so nothing to validate - same repair
+            return repairOnce(dispute, rulePassages, userMessage,
+                    new OutputValidationException(List.of(NON_JSON_VIOLATION)), decidedAt);
         }
     }
 
@@ -63,6 +73,9 @@ public class LlmDecisionEngine implements DecisionEngine {
             return compose(dispute, repaired, agentVersion + "+repaired", decidedAt);
         } catch (OutputValidationException terminalFailure) {
             return escalateAfterFailedRepair(dispute, rulePassages, terminalFailure.violations(),
+                    agentVersion + "+repair-failed", decidedAt);
+        } catch (JacksonException stillProse) {
+            return escalateAfterFailedRepair(dispute, rulePassages, List.of(NON_JSON_VIOLATION),
                     agentVersion + "+repair-failed", decidedAt);
         }
     }

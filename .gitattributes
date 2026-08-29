@@ -1,0 +1,14 @@
+# Developed on Windows, built on Linux in CI. Three families do not survive a CRLF:
+#   - mvnw: the kernel reads the shebang literally and reports "bad interpreter: /bin/sh^M",
+#     a message that mentions neither git nor line endings;
+#   - shell scripts and container entrypoints;
+#   - Flyway SQL, whose CHECKSUM is computed over the content: a CRLF would diverge from an
+#     already-applied migration and Flyway would refuse to start against an existing database.
+* text=auto
+
+*.sh   text eol=lf
+mvnw   text eol=lf
+*.sql  text eol=lf
+*.yml  text eol=lf
+
+mvnw.cmd text eol=crlf

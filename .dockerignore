@@ -1,0 +1,10 @@
+# The build context only carries what is needed to COMPILE.
+target/
+*/target/
+.git/
+.idea/
+docs/
+scripts/
+settings-local.xml
+*.log
+.env

@@ -1,0 +1,15 @@
+# Exclusions and not a property of ours: DataSourceAutoConfiguration fails before our beans
+# exist, so the two mechanisms are complementary - this switches off the framework, while
+# dra.persistence and dra.rag.store choose our beans
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration
+      - org.springframework.boot.data.jdbc.autoconfigure.DataJdbcRepositoriesAutoConfiguration
+      - org.springframework.boot.flyway.autoconfigure.FlywayAutoConfiguration
+      - org.springframework.ai.vectorstore.pgvector.autoconfigure.PgVectorStoreAutoConfiguration
+
+dra:
+  persistence: memory
+  rag:
+    store: simple

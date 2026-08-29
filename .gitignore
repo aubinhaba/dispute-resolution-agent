@@ -1,8 +1,9 @@
 # Maven
 target/
-!.mvn/wrapper/maven-wrapper.jar
 .mvn/timing.properties
-.mvn/wrapper/maven-wrapper.properties
+# maven-wrapper.properties IS committed: without it ./mvnw does not know which Maven to fetch,
+# so the wrapper is broken for anyone cloning. The wrapper is generated in only-script mode,
+# hence no rule for maven-wrapper.jar
 
 # IDE
 .idea/

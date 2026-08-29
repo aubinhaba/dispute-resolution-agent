@@ -1,5 +1,6 @@
 package com.bino.dra.adapter.out.vectorstore;
 
+import com.bino.dra.testsupport.NoDatabase;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -19,6 +20,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 // The RetrievalAugmentationAdvisor path the decision flow deliberately does NOT take (see ADR-0010)
+@NoDatabase
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")
 class RagAdvisorDemoIT {

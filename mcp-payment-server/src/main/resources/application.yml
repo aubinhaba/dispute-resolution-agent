@@ -1,17 +1,18 @@
-# Under STDIO, stdout carries JSON-RPC: any stray byte breaks the client handshake
 spring:
   application:
     name: mcp-payment-server
-  main:
-    web-application-type: none
-    banner-mode: off
   ai:
     mcp:
       server:
-        stdio: true
+        # Not redundant with the field default: the STREAMABLE condition carries
+        # matchIfMissing=false while the SSE one carries true, so an absent property elects SSE
+        protocol: STREAMABLE
         name: mcp-payment-server
         version: 0.1.0
         type: SYNC
+        streamable-http:
+          # The client references this path in its URL: the two must agree
+          mcp-endpoint: /mcp
         # Sent to the client at initialization; it may inject this into its LLM context
         instructions: >
           Read-only payment dispute evidence tools. Start with get_transaction to retrieve the
@@ -19,9 +20,22 @@ spring:
           get_related_transactions, and get_fulfillment_record (for goods-not-received claims).
           All data is tokenized: customerRef is a token, card numbers are last-4 only.
 
-logging:
-  threshold:
-    # OFF at the source; blanking the console pattern instead makes Logback complain on stderr
-    console: OFF
-  file:
-    name: target/mcp-payment-server.log
+server:
+  port: ${MCP_SERVER_PORT:8081}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Compose and the test fixture wait on this probe; without it they would sleep instead
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+dra:
+  mcp:
+    # Empty: the server refuses to start rather than expose the tools (see ADR-0020)
+    shared-secret: ${DRA_MCP_SHARED_SECRET:}

@@ -1,0 +1,225 @@
+<!doctype html>
+<!--
+  No build, no framework, no external request: served same-origin from static/, so no BFF and no
+  CORS. It decides nothing about provenance - it reads the label returned by GET /disputes/{id}.
+  Read-only: there is no write action here. See ADR-0018.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Audit trail - Dispute Resolution Agent</title>
+  <style>
+    :root {
+      --ink: #17191c;
+      --paper: #f7f6f3;
+      --card: #ffffff;
+      --rule: #dcd9d2;
+      --muted: #6b6d72;
+      --attested: #1f6b45;
+      --attested-bg: #e8f3ec;
+      --model: #8a5a12;
+      --model-bg: #fbf1de;
+      --untrusted: #9a2f2f;
+      --untrusted-bg: #fbeaea;
+      --mono: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 2.5rem 1.25rem 4rem;
+      background: var(--paper); color: var(--ink);
+      font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main { max-width: 60rem; margin: 0 auto; }
+    h1 { font-size: 1.35rem; margin: 0 0 .25rem; letter-spacing: -.01em; }
+    .subtitle { color: var(--muted); margin: 0 0 2rem; font-size: .9rem; }
+
+    form { display: flex; gap: .5rem; margin-bottom: 1.75rem; }
+    input, button {
+      font: inherit; padding: .55rem .75rem;
+      border: 1px solid var(--rule); border-radius: .35rem; background: var(--card);
+    }
+    input { flex: 1; font-family: var(--mono); }
+    #key { flex: 0 0 12rem; }
+    button { cursor: pointer; background: var(--ink); color: var(--paper); border-color: var(--ink); }
+    button:hover { opacity: .88; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: .5rem 1rem; margin-bottom: 1.5rem; font-size: .82rem; }
+    .legend span { display: inline-flex; align-items: center; gap: .4rem; color: var(--muted); }
+    .dot { width: .7rem; height: .7rem; border-radius: 2px; display: inline-block; }
+    .dot.ATTESTED { background: var(--attested); }
+    .dot.MODEL { background: var(--model); }
+    .dot.UNTRUSTED { background: var(--untrusted); }
+
+    .card { background: var(--card); border: 1px solid var(--rule); border-radius: .5rem; padding: 1.25rem 1.4rem; margin-bottom: 1rem; }
+    .card h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); margin: 0 0 1rem; font-weight: 600; }
+
+    .field { display: grid; grid-template-columns: 11rem 1fr; gap: .6rem 1rem; padding: .55rem 0; border-top: 1px solid var(--rule); align-items: baseline; }
+    .field:first-of-type { border-top: none; }
+    .key { font-family: var(--mono); font-size: .8rem; color: var(--muted); }
+    .value { overflow-wrap: anywhere; }
+    .value ul { margin: 0; padding-left: 1.1rem; }
+    .value li { font-family: var(--mono); font-size: .82rem; margin-bottom: .3rem; }
+
+    /* Border and label both come from the class, so from the label the API returned */
+    .mark { border-left: 3px solid transparent; padding-left: .7rem; }
+    .mark.ATTESTED { border-left-color: var(--attested); }
+    .mark.MODEL { border-left-color: var(--model); }
+    .mark.UNTRUSTED { border-left-color: var(--untrusted); }
+    .tag { display: inline-block; font-family: var(--mono); font-size: .65rem; letter-spacing: .06em; padding: .1rem .35rem; border-radius: 2px; margin-left: .5rem; vertical-align: .12em; }
+    .tag.ATTESTED { color: var(--attested); background: var(--attested-bg); }
+    .tag.MODEL { color: var(--model); background: var(--model-bg); }
+    .tag.UNTRUSTED { color: var(--untrusted); background: var(--untrusted-bg); }
+
+    .status { font-family: var(--mono); font-size: .8rem; }
+    .message { color: var(--muted); padding: 1rem 0; }
+    @media (max-width: 34rem) { .field { grid-template-columns: 1fr; gap: .2rem; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Dispute audit trail</h1>
+  <p class="subtitle">Every field carries its origin exactly as the API declares it - this page does not invent it.</p>
+
+  <form id="search">
+    <input id="disputeId" name="id" placeholder="disputeId - e.g. D-DEMO-1" autocomplete="off" required>
+    <!--
+      The key is never in this page: it is typed and held in sessionStorage, cleared when the tab
+      closes. A key hard-coded in a statically served file would be a published secret.
+    -->
+    <input id="key" type="password" placeholder="API key" autocomplete="off" required>
+    <button type="submit">Load</button>
+  </form>
+
+  <div class="legend">
+    <span><i class="dot ATTESTED"></i> ATTESTED - produced or checked by deterministic code</span>
+    <span><i class="dot MODEL"></i> MODEL - model output, validated but not attestable</span>
+    <span><i class="dot UNTRUSTED"></i> UNTRUSTED - supplied by the caller</span>
+  </div>
+
+  <div id="output"></div>
+</main>
+
+<script>
+  const output = document.getElementById('output');
+  const idField = document.getElementById('disputeId');
+  const keyField = document.getElementById('key');
+  const KEY_STORAGE = 'dra-api-key';
+  let pollTimer = null;
+
+  // textContent everywhere, never innerHTML on data: rendering UNTRUSTED as HTML would write an
+  // XSS into the very page whose subject is "this field is not trustworthy".
+  const node = (tag, content, classes) => {
+    const n = document.createElement(tag);
+    if (classes) n.className = classes;
+    if (content !== undefined && content !== null) n.textContent = content;
+    return n;
+  };
+
+  function row(key, field) {
+    const provenance = field && field.provenance ? field.provenance : '';
+    const line = node('div', null, 'field');
+    line.append(node('div', key, 'key'));
+
+    const value = node('div', null, 'value mark ' + provenance);
+    const raw = field ? field.value : null;
+
+    if (Array.isArray(raw)) {
+      if (raw.length === 0) {
+        value.append(node('span', '—'));
+      } else {
+        const list = document.createElement('ul');
+        raw.forEach(e => list.append(node('li', e)));
+        value.append(list);
+      }
+    } else {
+      value.append(node('span', raw === null || raw === '' ? '—' : String(raw)));
+    }
+    if (provenance) value.append(node('span', provenance, 'tag ' + provenance));
+
+    line.append(value);
+    return line;
+  }
+
+  function plainRow(key, value) {
+    const line = node('div', null, 'field');
+    line.append(node('div', key, 'key'));
+    const v = (value === null || value === undefined) ? '—' : String(value);
+    line.append(node('div', v, 'value status'));
+    return line;
+  }
+
+  function render(item) {
+    output.replaceChildren();
+
+    const header = node('section', null, 'card');
+    header.append(node('h2', 'Dispute'));
+    header.append(row('disputeId', item.disputeId));
+    header.append(plainRow('status', item.status));
+    header.append(plainRow('submittedAt', item.submittedAt));
+    header.append(plainRow('completedAt', item.completedAt));
+    if (item.failureReason) header.append(plainRow('failureReason', item.failureReason));
+    output.append(header);
+
+    if (!item.decision) {
+      const waiting = item.status === 'PENDING'
+        ? 'Processing - this page polls the API every 2 s.'
+        : 'No decision: processing did not complete.';
+      output.append(node('p', waiting, 'message'));
+      return;
+    }
+
+    const block = node('section', null, 'card');
+    block.append(node('h2', 'Decision'));
+    const order = ['decision', 'confidence', 'citedReasonCode', 'rationale',
+                   'citedRulePassages', 'evidenceRefs', 'agentVersion', 'decidedAt'];
+    order.forEach(key => block.append(row(key, item.decision[key])));
+    output.append(block);
+  }
+
+  async function load(id) {
+    clearTimeout(pollTimer);
+    try {
+      const response = await fetch('/disputes/' + encodeURIComponent(id), {
+        headers: {'X-API-Key': sessionStorage.getItem(KEY_STORAGE) ?? ''}
+      });
+      // A 401 must say "key refused", not "API unreachable": an error that names the wrong cause
+      // sends you looking in the wrong place. The stored key is dropped, or every reload resends it
+      if (response.status === 401) {
+        sessionStorage.removeItem(KEY_STORAGE);
+        output.replaceChildren(node('p', 'API key missing or refused.', 'message'));
+        return;
+      }
+      if (response.status === 404) {
+        output.replaceChildren(node('p', 'No dispute under that identifier.', 'message'));
+        return;
+      }
+      const item = await response.json();
+      render(item);
+      // Polling and not SSE: processing takes ~20 s and there is a single result to wait for
+      if (item.status === 'PENDING') pollTimer = setTimeout(() => load(id), 2000);
+    } catch (error) {
+      output.replaceChildren(node('p', 'API unreachable.', 'message'));
+    }
+  }
+
+  document.getElementById('search').addEventListener('submit', event => {
+    event.preventDefault();
+    const id = idField.value.trim();
+    if (!id) return;
+    sessionStorage.setItem(KEY_STORAGE, keyField.value);
+    // The identifier goes in the URL to make the view shareable; the key never does
+    history.replaceState(null, '', '?id=' + encodeURIComponent(id));
+    load(id);
+  });
+
+  keyField.value = sessionStorage.getItem(KEY_STORAGE) ?? '';
+
+  const fromUrl = new URLSearchParams(location.search).get('id');
+  if (fromUrl) {
+    idField.value = fromUrl;
+    if (keyField.value) load(fromUrl);
+  }
+</script>
+</body>
+</html>

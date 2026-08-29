@@ -58,7 +58,7 @@ public final class LlmReranker implements DocumentPostProcessor {
     static List<Document> reorder(List<Document> candidates, List<String> rankedIds, int topK) {
         Map<String, Document> byId = new LinkedHashMap<>();
         for (Document candidate : candidates) {
-            byId.put(candidate.getId(), candidate);
+            byId.put(RuleCorpusLoader.chunkId(candidate), candidate);
         }
 
         Set<String> selected = new LinkedHashSet<>();

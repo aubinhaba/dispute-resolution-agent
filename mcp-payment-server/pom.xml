@@ -15,10 +15,22 @@
     <name>MCP Payment Server (read-only transactional tools)</name>
 
     <dependencies>
-        <!-- "core" MCP server starter: STDIO transport + @McpTool scanner + MCP Java SDK. -->
+        <!-- -webmvc and not core: the core carries no web transport autoconfiguration at all.
+             @McpTool and the annotation scanner are untouched by the move (see ADR-0016) -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-mcp-server</artifactId>
+            <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+        </dependency>
+
+        <!-- /actuator/health becomes the "peer is reachable" signal; under STDIO the client knew -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
         <dependency>
@@ -36,7 +48,7 @@
 
     <build>
         <plugins>
-            <!-- Executable fat jar: under STDIO the client launches this jar as a subprocess. -->
+            <!-- Executable fat jar: now for the container image and the test fixture -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

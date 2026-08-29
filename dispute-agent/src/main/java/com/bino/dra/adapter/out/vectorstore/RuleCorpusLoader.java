@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 
 public final class RuleCorpusLoader {
 
@@ -23,6 +24,9 @@ public final class RuleCorpusLoader {
 
     public static final String META_TITLE = "title";
     public static final String META_SECTION = "section";
+
+    // The audit id lives in metadata, not in getId(): PgVectorStore requires UUIDs (see ADR-0005)
+    public static final String META_CHUNK_ID = "chunkId";
 
     public static final String ANY = "ANY";
 
@@ -40,13 +44,22 @@ public final class RuleCorpusLoader {
         Map<String, Document> byId = new LinkedHashMap<>();
         for (Resource sheet : sheets) {
             for (Document chunk : parse(readUtf8(sheet), sheet.getFilename())) {
-                Document previous = byId.putIfAbsent(chunk.getId(), chunk);
+                Document previous = byId.putIfAbsent(chunkId(chunk), chunk);
                 if (previous != null) {
-                    throw new IllegalStateException("Duplicate chunk id in corpus: " + chunk.getId());
+                    throw new IllegalStateException("Duplicate chunk id in corpus: " + chunkId(chunk));
                 }
             }
         }
         return List.copyOf(byId.values());
+    }
+
+    public static String chunkId(Document chunk) {
+        Object value = chunk.getMetadata().get(META_CHUNK_ID);
+        return value instanceof String text && !text.isBlank() ? text : chunk.getId();
+    }
+
+    private static String uuidOf(String chunkId) {
+        return UUID.nameUUIDFromBytes(chunkId.getBytes(StandardCharsets.UTF_8)).toString();
     }
 
     static List<Document> parse(String markdown, String sourceName) {
@@ -61,11 +74,13 @@ public final class RuleCorpusLoader {
 
         List<Document> chunks = new ArrayList<>();
         for (Section section : splitSections(parts[1])) {
+            String chunkId = ruleId + "#" + slug(section.title());
             chunks.add(Document.builder()
-                    // This id becomes the audit citation: a UUID would be unusable in review
-                    .id(ruleId + "#" + slug(section.title()))
+                    // Derived and not random: reindexing must not invalidate archived citations
+                    .id(uuidOf(chunkId))
                     .text(enrich(network, reasonCode, title, section))
                     .metadata(Map.of(
+                            META_CHUNK_ID, chunkId,
                             META_RULE_ID, ruleId,
                             META_NETWORK, network,
                             META_REASON_CODE, reasonCode,

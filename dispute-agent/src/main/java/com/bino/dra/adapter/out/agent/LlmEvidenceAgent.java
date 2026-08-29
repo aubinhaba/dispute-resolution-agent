@@ -3,7 +3,10 @@ package com.bino.dra.adapter.out.agent;
 import com.bino.dra.application.port.out.EvidenceGatherer;
 import com.bino.dra.domain.model.Dispute;
 import com.bino.dra.domain.model.EvidenceBundle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import tools.jackson.core.JacksonException;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +23,8 @@ import java.util.List;
 
 @Component
 public class LlmEvidenceAgent implements EvidenceGatherer {
+
+    private static final Logger log = LoggerFactory.getLogger(LlmEvidenceAgent.class);
 
     private final ChatClient chatClient;
     private final ToolCallbackProvider mcpToolCallbacks;
@@ -48,14 +53,28 @@ public class LlmEvidenceAgent implements EvidenceGatherer {
         ToolCallRecorder recorder = new ToolCallRecorder(maxToolCalls);
         List<ToolCallback> instrumentedTools = instrument(mcpToolCallbacks, recorder);
 
-        EvidenceDraft draft = chatClient.prompt()
-                .system(systemPrompt)
-                .user(buildUserMessage(dispute))
-                .tools(instrumentedTools)
-                .call()
-                .entity(EvidenceDraft.class);
+        try {
+            EvidenceDraft draft = chatClient.prompt()
+                    .system(systemPrompt)
+                    .user(buildUserMessage(dispute))
+                    .tools(instrumentedTools)
+                    .call()
+                    .entity(EvidenceDraft.class);
 
-        return compose(dispute, draft, recorder, agentVersion, clock.instant());
+            return compose(dispute, draft, recorder, agentVersion, clock.instant());
+        } catch (JacksonException unparsableResponse) {
+            return bundleWithoutNarrative(dispute, recorder, unparsableResponse);
+        }
+    }
+
+    // Prose instead of JSON: keep what the recorder attested, lose what the model narrated.
+    // JacksonException and not RuntimeException, or a wider catch would hide real bugs
+    private EvidenceBundle bundleWithoutNarrative(Dispute dispute, ToolCallRecorder recorder,
+                                                  JacksonException cause) {
+        // The cause is logged, never carried into the bundle: it can quote an input field back
+        log.warn("Unparsable evidence-agent response for {}: bundle reduced to attested facts",
+                dispute.disputeId(), cause);
+        return compose(dispute, null, recorder, agentVersion + "+unparsed", clock.instant());
     }
 
     static List<ToolCallback> instrument(ToolCallbackProvider provider, ToolCallRecorder recorder) {

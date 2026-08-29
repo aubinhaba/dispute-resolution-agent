@@ -1,5 +1,6 @@
 package com.bino.dra.adapter.out.agent;
 
+import com.bino.dra.testsupport.NoDatabase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.ai.anthropic.AnthropicChatOptions;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@NoDatabase
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")
 class RawToolLoopDemoIT {

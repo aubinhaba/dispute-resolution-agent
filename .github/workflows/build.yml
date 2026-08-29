@@ -1,0 +1,45 @@
+# The full suite, with NO API key: a green badge has to mean something. Most tests run without
+# an Anthropic key - RAG uses a local ONNX embedding model, the REST topology is exercised with
+# stubbed model ports, and persistence runs on Testcontainers. The rest are gated on the key and
+# self-skip; eval-gate.yml is what runs them, separately and on purpose.
+
+name: build
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    # A Docker daemon is a HARD dependency: integration tests start a pgvector/pgvector:pg17
+    # container for the append-only history and the vector index
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up the JDK
+        uses: actions/setup-java@v4
+        with:
+          # Java 21, not 25: the migration is deferred and written down (see ADR-0019)
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Full verify, without a key
+        # verify and not test: the *IT run in the verify phase (Failsafe), and that is where the
+        # REST topology, persistence and RAG live
+        run: ./mvnw -B --no-transfer-progress verify
+
+      - name: Publish test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            **/target/surefire-reports/**
+            **/target/failsafe-reports/**
+          retention-days: 7

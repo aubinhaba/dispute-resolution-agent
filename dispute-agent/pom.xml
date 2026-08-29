@@ -13,10 +13,20 @@
     <artifactId>dispute-agent</artifactId>
     <name>Dispute Agent (orchestrator + agents + eval harness)</name>
 
+    <properties>
+        <dra.test.api-key>test-api-key</dra.test.api-key>
+        <dra.test.mcp-secret>test-mcp-secret</dra.test.mcp-secret>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter</artifactId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
         <dependency>
@@ -24,7 +34,7 @@
             <artifactId>spring-ai-starter-model-anthropic</artifactId>
         </dependency>
 
-        <!-- "core" variant = STDIO: no code shared with the server, only the JSON contract (see ADR-0008) -->
+        <!-- Unchanged by the move to Streamable HTTP: only configuration changed (see ADR-0016) -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-mcp-client</artifactId>
@@ -34,6 +44,13 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-transformers</artifactId>
+            <exclusions>
+                <!-- Inference runs on onnxruntime; this engine alone was 238 MB of the DJL cache -->
+                <exclusion>
+                    <groupId>ai.djl.pytorch</groupId>
+                    <artifactId>pytorch-engine</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>
@@ -42,6 +59,39 @@
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-rag</artifactId>
+        </dependency>
+
+        <!-- Spring Data JDBC and not JPA: an append-only model uses no entity lifecycle (ADR-0017) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Boot 4 moved FlywayAutoConfiguration out of core: flyway-core alone never runs -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-flyway</artifactId>
+        </dependency>
+        <!-- Flyway 10 moved per-database support out of its core: absent gives "Unsupported Database" -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-database-postgresql</artifactId>
+        </dependency>
+
+        <!-- Second VectorStore implementation, coexisting with SimpleVectorStore (see ADR-0005) -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-starter-vector-store-pgvector</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
         <dependency>
@@ -55,13 +105,100 @@
             <artifactId>archunit-junit5</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- Boot 4 split spring-boot-test-autoconfigure per technology: @WebMvcTest lives here -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Same split for @DataJdbcTest -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-data-jdbc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- The @WebMvcTest slice imports no security autoconfiguration: without this, a test
+             asserting 202 stays green against a production that answers 401 (see ADR-0020) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.security</groupId>
+            <artifactId>spring-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- A real Postgres, not H2 in compatibility mode: the trigger and HNSW exist only there -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Testcontainers 2.0 renamed every module; the old coordinates fail as "version is missing" -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-postgresql</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Surefire and Failsafe add this at runtime but not at compile time -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Without a classifier the fat jar replaces the main artifact, and Failsafe
+                         then finds no test classes: "TestEngine encountered a critical issue" -->
+                    <classifier>boot</classifier>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <dra.security.api-key>${dra.test.api-key}</dra.security.api-key>
+                        <dra.mcp.shared-secret>${dra.test.mcp-secret}</dra.mcp.shared-secret>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration>
+                    <systemPropertyVariables>
+                        <!-- Arms McpServerLauncherListener; unit tests must not pay its ~10 s start -->
+                        <dra.test.mcp-server>true</dra.test.mcp-server>
+                        <dra.security.api-key>${dra.test.api-key}</dra.security.api-key>
+                        <dra.mcp.shared-secret>${dra.test.mcp-secret}</dra.mcp.shared-secret>
+                    </systemPropertyVariables>
+                </configuration>
                 <executions>
                     <execution>
                         <goals>

@@ -2,6 +2,7 @@ package com.bino.dra.eval;
 
 import com.bino.dra.application.orchestration.OrchestratorService;
 import com.bino.dra.domain.model.DisputeDecision;
+import com.bino.dra.testsupport.NoDatabase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 // One run costs ~90-120 model calls: this is launched knowingly, never on every push
+@NoDatabase
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")
 class EvalHarnessIT {

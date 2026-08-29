@@ -1,5 +1,6 @@
 package com.bino.dra.adapter.out.vectorstore;
 
+import com.bino.dra.testsupport.NoDatabase;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -18,6 +19,7 @@ import java.nio.file.Path;
 import static org.assertj.core.api.Assertions.assertThat;
 
 // Third arm: the LLM reranker matches the free deterministic one here, one model call per dispute
+@NoDatabase
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")
 class LlmRerankComparisonIT {

@@ -1,0 +1,59 @@
+# The measurement of a non-deterministic system, SEPARATE from build.yml. The harness replays 30
+# labelled cases against real model calls - minutes of wall time and ~90-120 billed calls. Wiring
+# it onto every push would make it expensive enough that it eventually gets disabled.
+#
+# IT FAILS WHEN THE SECRET IS MISSING, instead of skipping silently. A gate you can skip without
+# noticing is worse than no gate: it grants the confidence without the measurement.
+
+name: eval-gate
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # First step, before any build: fail fast and name the cause. Without this guard a missing
+      # secret surfaces as an API 400 several minutes in, on the nominal code path, and looks
+      # exactly like a regression
+      - name: Is the secret configured?
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::ANTHROPIC_API_KEY is missing. This workflow MEASURES the system: with"
+            echo "::error::no key it can measure nothing, and skipping silently would grant the"
+            echo "::error::confidence without the measurement. Set it in Settings > Secrets > Actions."
+            exit 1
+          fi
+
+      - name: Set up the JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Eval harness
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        # EvalHarnessIT writes target/eval-report.json and carries its own FLOOR thresholds.
+        # Floors and not equalities: two runs of the same code give 0.85 and 0.90, so a gate
+        # asserting equality would be red half the time and end up disabled
+        run: ./mvnw -B --no-transfer-progress verify -Dit.test=EvalHarnessIT
+
+      - name: Publish the eval report
+        # always(): a report from a RED run is more interesting than one from a green run
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: dispute-agent/target/eval-report.json
+          retention-days: 30

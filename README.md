@@ -1,6 +1,6 @@
 # Payment Dispute Resolution Agent
 
-[![CI](https://github.com/aubinhaba/dispute-resolution-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/aubinhaba/dispute-resolution-agent/actions/workflows/ci.yml)
+[![build](https://github.com/aubinhaba/dispute-resolution-agent/actions/workflows/build.yml/badge.svg)](https://github.com/aubinhaba/dispute-resolution-agent/actions/workflows/build.yml)
 [![Java 21](https://img.shields.io/badge/Java-21-orange)](https://openjdk.org/projects/jdk/21/)
 [![Spring AI 2.0](https://img.shields.io/badge/Spring%20AI-2.0-6DB33F)](https://docs.spring.io/spring-ai/reference/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
@@ -10,7 +10,8 @@ A multi-agent system that turns a card payment dispute into an auditable recomme
 retrieved, and every evidence reference is regenerated from the tool calls actually made, so no field
 with evidential weight is taken on the model's word.
 
-Java 21 · Spring Boot 4.1 · Spring AI 2.0 · MCP · hexagonal architecture · 30-case eval harness
+Java 21 · Spring Boot 4.1 · Spring AI 2.0 · MCP over Streamable HTTP · Postgres + pgvector ·
+hexagonal architecture · 30-case eval harness · `docker compose up`
 
 ## Output
 
@@ -39,14 +40,15 @@ id was never retrieved is refused · [ADR-0004](docs/adr/ADR-0004-validated-untr
 
 ```mermaid
 flowchart LR
-    D[Dispute] --> O[Orchestrator]
+    H["POST /disputes → 202"] --> O[Orchestrator]
     O --> E[Evidence agent]
     O --> C[Compliance agent]
-    E -->|tool-calling loop| M[("MCP server<br/>4 read-only tools")]
+    E -->|tool-calling loop| M[("MCP server<br/>4 read-only tools<br/>Streamable HTTP")]
     C -->|"50 candidates → top 5"| V[("Vector store<br/>15 rule sheets")]
     E --> DE[DecisionEngine]
     C --> DE
     DE --> R["DisputeDecision<br/>citedRulePassages + evidenceRefs"]
+    R --> P[("Postgres<br/>append-only history")]
 ```
 
 | Need | Mechanism | Port |
@@ -62,7 +64,8 @@ of the domain and Spring AI out of everything but the adapters.
 ```
 domain/        Pure entities (contract records) — no framework
 application/   Use cases + driven ports — EvidenceGatherer, RuleRetriever, DecisionEngine
-adapter/out/   Implementations: LLM (Spring AI), MCP client, vector store
+adapter/in/    REST entry point + provenance labelling
+adapter/out/   Implementations: LLM (Spring AI), MCP client, vector store, persistence
 ```
 
 ## Measured, not asserted
@@ -78,45 +81,58 @@ orchestrator, with a JSON report per run.
 | `rulePassageAttestationRate` | 1.00 |
 
 What code guarantees holds at 100%; what rests on the model's judgement holds at 85–90%. Gates
-assert floors, never equalities.
+assert floors, never equalities. Reranking was measured the same way: the heuristic reranker takes
+precision@5 from 0.40 to 1.00 and the LLM reranker buys nothing on top, so the deterministic one is
+the default. **The first run scored 0.55 — and six of the nine failures were a contradiction
+between two specifications, not model errors** · [docs/EVALUATION.md](docs/EVALUATION.md)
 
-| Reranking, over 8 disputes | precision@5 | Cost |
-|---|---|---|
-| None (control) | 0.40 | none |
-| Heuristic | **1.00** | none |
-| LLM | **1.00** | one model call per dispute |
-
-The LLM reranker buys nothing measurable here, so the deterministic one is the default.
-
-**The first eval run scored 0.55 — and six of the nine failures were a contradiction between two
-specifications, not model errors.** → [docs/EVALUATION.md](docs/EVALUATION.md)
-
-## Engineering decisions
-
-Each recorded with its rejected alternatives under [`docs/adr/`](docs/adr):
+## Design decisions
 
 - **MCP for data, RAG for rules** — a tool returns an exact value for an exact key, a rule is found by similarity · [ADR-0001](docs/adr/ADR-0001-mcp-vs-rag-boundary.md)
 - **The model proposes, the system attests** — every field with evidential weight is produced by the system · [ADR-0004](docs/adr/ADR-0004-validated-untrusted-llm-output.md)
 - **A hard business rule is code, not a prompt line** — amount threshold and representment deadline override the verdict · [ADR-0012](docs/adr/ADR-0012-deterministic-rule-overrides-the-model.md)
 - **A validation failure is a decision, not an exception** — one repair round-trip, then a motivated `ESCALATE` · [ADR-0014](docs/adr/ADR-0014-validation-failure-becomes-an-escalate.md)
-- **Agents are out adapters** — "agent" names a technique, the port names a responsibility · [ADR-0009](docs/adr/ADR-0009-llm-agents-as-out-adapters.md)
-- **Modular RAG blocks, not the advisor** — an advisor melts passages into the prompt and dissolves the citation · [ADR-0010](docs/adr/ADR-0010-modular-rag-blocks-over-advisor.md)
-- **Local, deterministic embeddings** — reproducibility, not cost · [ADR-0011](docs/adr/ADR-0011-local-onnx-embeddings.md)
+- **Provenance is a property of the contract, not of a UI** — a colour in a DOM is neither testable nor gatable · [ADR-0018](docs/adr/ADR-0018-provenance-as-a-contract-property.md)
+
+All nineteen, each with its rejected alternatives → [`docs/adr/`](docs/adr/README.md)
 
 ## Run it
 
 ```bash
-mvn verify                                 # JDK 21 + Maven; model-calling tests self-skip
-ANTHROPIC_API_KEY=sk-ant-... mvn verify    # adds the tests that make real model calls
+cp .env.example .env         # two demo secrets; no API key required
+docker compose up --build    # agent + MCP tool server + Postgres; ready on /actuator/health/readiness
+
+KEY=local-demo-key-change-me
+curl -sSi -X POST localhost:8080/disputes -H "X-API-Key: $KEY" \
+  -H 'Content-Type: application/json' -d '{
+    "disputeId":"D-DEMO-1","transactionId":"TXN-EVAL-003","merchantId":"MERCH-ELEC-01",
+    "network":"VISA","reasonCode":"10.4","disputedAmountMinorUnits":4500,"currency":"EUR",
+    "raisedAt":"2026-08-20T09:00:00Z","representmentDueBy":"2026-12-20T09:00:00Z",
+    "issuerClaim":"My card 4111111111111111 was charged without my consent."}'   # 202 Accepted
+curl -sS localhost:8080/disputes/D-DEMO-1 -H "X-API-Key: $KEY"                   # read it back
 ```
 
-Retrieval measurements are never gated — embeddings run locally, so RAG quality is verifiable
-offline. `mcp-payment-server` needs no key either, and packages as a standalone STDIO server that
-the agent launches as a subprocess.
+That claim carries a Luhn-valid PAN, so `PromptSafetyGuard` refuses it before a prompt is built and
+the orchestrator issues a motivated `ESCALATE` itself — a complete decision, no model consulted, no
+token spent. Every field comes back carrying where it came from:
+
+```json
+"rationale":   { "value": "...", "provenance": "MODEL" },
+"evidenceRefs":{ "value": ["TXN-EVAL-003"], "provenance": "ATTESTED" },
+"disputeId":   { "value": "D-DEMO-1", "provenance": "UNTRUSTED" }
+```
+
+Resubmitting the same `disputeId` answers `200` and reprocesses nothing; the decision survives a
+restart. <http://localhost:8080/audit.html> renders the same trail field by field.
+
+`./mvnw verify` builds without Compose — model-calling tests self-skip, `ANTHROPIC_API_KEY=sk-ant-…`
+adds them. A Docker daemon is needed either way: the persistence and vector-store tests start a real
+Postgres through Testcontainers.
 
 ## Roadmap
 
-MCP over Streamable HTTP · async REST entry point · Postgres · container images.
+Observability on the OpenTelemetry GenAI semantic conventions (`gen_ai.*`), a per-dispute token
+budget, and an eval-gate promotion policy for prompts.
 
 ## License
 

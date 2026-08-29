@@ -70,7 +70,8 @@ public class LlmComplianceAgent implements RuleRetriever {
     static String cite(Document chunk) {
         String title = metadata(chunk, RuleCorpusLoader.META_TITLE);
         String section = metadata(chunk, RuleCorpusLoader.META_SECTION);
-        return "[%s] %s - %s: %s".formatted(chunk.getId(), title, section, bodyOf(chunk));
+        // RuleCorpusLoader.chunkId not chunk.getId(): getId() carries a UUID PgVectorStore requires
+        return "[%s] %s - %s: %s".formatted(RuleCorpusLoader.chunkId(chunk), title, section, bodyOf(chunk));
     }
 
     private static String bodyOf(Document chunk) {

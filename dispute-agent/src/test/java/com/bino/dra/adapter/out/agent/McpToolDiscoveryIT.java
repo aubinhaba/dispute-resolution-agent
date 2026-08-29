@@ -1,19 +1,19 @@
 package com.bino.dra.adapter.out.agent;
 
-import org.junit.jupiter.api.BeforeAll;
+import com.bino.dra.testsupport.NoDatabase;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+// Not one assertion moved when the transport went from STDIO to Streamable HTTP (see ADR-0016)
+@NoDatabase
 @SpringBootTest(properties = {
         // The auto-configured ChatModel demands a key at startup; this test never calls it
         "spring.ai.anthropic.api-key=not-used-by-this-test"
@@ -23,19 +23,8 @@ class McpToolDiscoveryIT {
     private static final List<String> EXPECTED_TOOLS = List.of(
             "get_transaction", "get_customer_history", "get_related_transactions", "get_fulfillment_record");
 
-    private static final Path SERVER_JAR =
-            Path.of("..", "mcp-payment-server", "target", "mcp-payment-server-0.1.0-SNAPSHOT.jar");
-
     @Autowired
     private ToolCallbackProvider toolCallbackProvider;
-
-    @BeforeAll
-    static void the_mcp_server_jar_must_have_been_built() {
-        if (!Files.isRegularFile(SERVER_JAR)) {
-            throw new IllegalStateException("MCP server fat jar not found at " + SERVER_JAR.toAbsolutePath()
-                    + "\nBuild it first: mvn -DskipTests package (from the project root).");
-        }
-    }
 
     @Test
     void the_four_server_tools_are_discovered_by_the_client() {

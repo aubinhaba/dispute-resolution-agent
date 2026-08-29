@@ -6,8 +6,10 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RuleCorpusLoaderTest {
@@ -35,11 +37,24 @@ class RuleCorpusLoaderTest {
     }
 
     @Test
-    void chunk_id_is_readable_and_derived_from_the_section_title() {
+    void audit_id_is_readable_and_derived_from_the_section_title() {
         List<Document> chunks = RuleCorpusLoader.parse(MINIMAL_SHEET, "visa-13-1.md");
 
-        assertThat(chunks).extracting(Document::getId)
+        // This id IS the citation that ends up in DisputeDecision.citedRulePassages
+        assertThat(chunks).extracting(RuleCorpusLoader::chunkId)
                 .containsExactly("visa-13.1#scope", "visa-13.1#time-limits");
+    }
+
+    @Test
+    void technical_id_is_a_deterministic_uuid_derived_from_the_audit_id() {
+        List<Document> first = RuleCorpusLoader.parse(MINIMAL_SHEET, "visa-13-1.md");
+        List<Document> second = RuleCorpusLoader.parse(MINIMAL_SHEET, "visa-13-1.md");
+
+        // Deterministic, or reindexing at startup would orphan every archived citation (ADR-0005)
+        assertThat(first).allSatisfy(chunk ->
+                assertThatCode(() -> UUID.fromString(chunk.getId())).doesNotThrowAnyException());
+        assertThat(first).extracting(Document::getId)
+                .containsExactlyElementsOf(second.stream().map(Document::getId).toList());
     }
 
     @Test

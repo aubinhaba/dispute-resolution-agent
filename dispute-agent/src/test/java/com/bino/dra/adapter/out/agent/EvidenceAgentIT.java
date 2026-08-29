@@ -4,6 +4,7 @@ import com.bino.dra.domain.model.Dispute;
 import com.bino.dra.domain.model.EvidenceBundle;
 import com.bino.dra.domain.model.Money;
 import com.bino.dra.domain.model.Network;
+import com.bino.dra.testsupport.NoDatabase;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import java.time.Instant;
 import static org.assertj.core.api.Assertions.assertThat;
 
 // Asserts invariants of the investigation, never an exact model answer: the latter is flaky by nature
+@NoDatabase
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")
 class EvidenceAgentIT {
