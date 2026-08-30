@@ -40,7 +40,6 @@ class CleanArchitectureTest {
                 .check(CLASSES);
     }
 
-    // A whitelist, not a list of forbidden layers: it covers packages that do not exist yet
     @Test
     void only_adapters_know_about_spring_ai() {
         noClasses()

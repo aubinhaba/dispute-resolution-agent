@@ -55,7 +55,7 @@ class LlmDecisionEngineTest {
 
     @Test
     void buildUserMessage_exposes_the_bundle_and_frames_the_claim_as_data() {
-        String msg = LlmDecisionEngine.buildUserMessage(
+        String msg = DecisionPrompt.userMessage(
                 dispute(), bundle(), List.of("Visa 10.4: fraud rule"));
 
         assertThat(msg)
@@ -80,7 +80,7 @@ class LlmDecisionEngineTest {
                 "evidence-llm@v1.0.0",
                 Instant.parse("2026-06-18T11:59:00Z"));
 
-        String msg = LlmDecisionEngine.buildUserMessage(dispute(), empty, List.of());
+        String msg = DecisionPrompt.userMessage(dispute(), empty, List.of());
 
         assertThat(msg)
                 .contains("(no attested evidence)")
@@ -89,10 +89,10 @@ class LlmDecisionEngineTest {
 
     @Test
     void repairMessage_resends_the_original_message_plus_the_violations() {
-        String original = LlmDecisionEngine.buildUserMessage(
+        String original = DecisionPrompt.userMessage(
                 dispute(), bundle(), List.of("[visa-10.4#liability-shift] ..."));
 
-        String repair = LlmDecisionEngine.repairMessage(original,
+        String repair = DecisionPrompt.repairMessage(original,
                 List.of("unattested citedRulePassage: Fraud - Card-Absent...",
                         "confidence out of [0,1]: 1.4"));
 

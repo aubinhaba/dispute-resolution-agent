@@ -9,14 +9,12 @@ public record EvidenceBundle(
         String transactionId,
         String summary,
         List<String> findings,
-        // From here down the system attests from observed tool calls; above, the model only proposes
         List<String> evidenceRefs,
         List<String> toolsUsed,
         boolean budgetExhausted,
         String agentVersion,
         Instant gatheredAt
 ) {
-
     public EvidenceBundle {
         Objects.requireNonNull(disputeId, "disputeId is required");
         Objects.requireNonNull(transactionId, "transactionId is required");

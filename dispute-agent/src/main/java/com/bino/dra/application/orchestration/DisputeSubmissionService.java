@@ -29,8 +29,6 @@ public class DisputeSubmissionService {
         Objects.requireNonNull(dispute, "dispute required");
         DisputeCase pending = DisputeCase.pending(dispute.disputeId(), clock.instant());
 
-        // Claim before dispatch: dispatching first opens a window where the worker finishes
-        // before the PENDING trail exists
         Optional<DisputeCase> claimed = repository.claim(pending);
         if (claimed.isEmpty()) {
             return new Submission(knownState(dispute.disputeId()), false);
@@ -43,7 +41,6 @@ public class DisputeSubmissionService {
         return repository.findById(disputeId);
     }
 
-    // A refused claim guarantees a state exists: claim publishes the row and its first event together
     private DisputeCase knownState(String disputeId) {
         return repository.findById(disputeId).orElseThrow(() ->
                 new IllegalStateException("Dispute claimed but no state recorded: " + disputeId));

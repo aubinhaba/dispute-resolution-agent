@@ -22,7 +22,6 @@ class LocalEmbeddingModelTest {
     void local_model_produces_384_dimensional_vectors() {
         float[] vector = embeddingModel.embed("Visa reason code 10.4 covers card-absent fraud.");
 
-        // A store filled with one model and queried with another returns noise, never an error
         assertThat(vector).hasSize(ALL_MINILM_L6_V2_DIMENSIONS);
     }
 
@@ -33,7 +32,6 @@ class LocalEmbeddingModelTest {
         float[] first = embeddingModel.embed(text);
         float[] second = embeddingModel.embed(text);
 
-        // Exact equality, not a tolerance: this is what makes an eval run reproducible
         assertThat(second).isEqualTo(first);
     }
 

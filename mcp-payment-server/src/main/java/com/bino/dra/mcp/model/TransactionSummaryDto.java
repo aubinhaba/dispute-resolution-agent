@@ -7,7 +7,6 @@ public record TransactionSummaryDto(
         String capturedAt,
         String scaResult
 ) {
-
     public static TransactionSummaryDto from(TransactionDto full) {
         return new TransactionSummaryDto(
                 full.transactionId(), full.merchantId(), full.amount(),

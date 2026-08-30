@@ -3,7 +3,8 @@ spring:
     name: dispute-agent
 
   # The jar default is the production topology: Postgres + Flyway + pgvector. Tests that need
-  # no database activate the `no-db` profile. The password only ever unlocks the local compose
+  # no database activate the `no-db` profile. The password default only unlocks local compose;
+  # a real deployment must set DRA_DB_PASSWORD
   datasource:
     url: ${DRA_DB_URL:jdbc:postgresql://localhost:5432/dra}
     username: ${DRA_DB_USER:dra}
@@ -58,9 +59,9 @@ spring:
 
 dra:
   # No matchIfMissing on any adapter condition: an absent property fails startup by design,
-  # because an implicit winner is worse than an outage
+  # rather than electing an implicit winner
   security:
-    # Empty: the application refuses to start (see ADR-0020)
+    # Empty by default: the application refuses to start without it (see ADR-0020)
     api-key: ${DRA_API_KEY:}
   persistence: ${DRA_PERSISTENCE:jdbc}
   agent:
@@ -68,13 +69,13 @@ dra:
     evidence-version: "evidence-llm@v1.0.0"
     # Spring AI's tool-calling loop exposes no turn limit: this is the only bound
     max-tool-calls: 8
-    compliance-version: "compliance-rag@v1.0.0"
   orchestrator:
     # 1000.00 EUR in minor units; a business threshold gets renegotiated, so config not a constant
     escalation-threshold-minor-units: 100000
     # Calendar days, not business days - the rule corpus says so explicitly
     representment-min-days-remaining: 3
-    # Distinct from decision-llm@...: marks the decisions taken with no model involved
+    # Marks the decisions taken with no model involved. The orchestrator@ prefix is matched
+    # by DecisionView to label provenance, so renaming it relabels those decisions as MODEL.
     version: "orchestrator@v1.0.0"
   validation:
     known-reason-codes: "10.4,11.3,12.6,13.1,13.2,13.3,4808,4834,4837,4853,4855"
@@ -83,7 +84,7 @@ dra:
     # candidates drives recall, top-k drives how much noise reaches the prompt
     candidates: 50
     top-k: 5
-    # none is the measurement control arm, not a production strategy
+    # heuristic | llm | none. none is the measurement control arm, not a production value.
     reranker: heuristic
   mcp:
     # Sent as X-MCP-Secret on every outbound call; must match the MCP server

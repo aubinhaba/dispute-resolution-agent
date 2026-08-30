@@ -22,14 +22,11 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// The 1.00 is a regression signal, not absolute quality: judgements are written per sheet and the
-// reranker ranks by sheet membership, so metric and system share one signal
 class RerankComparisonIT {
 
     static final int CANDIDATES = 50;
     static final int TOP_K = 5;
 
-    // A reason-code sheet is never relevant alone: the liability shift decides a fraud dispute
     static final Map<String, Set<String>> QRELS = new LinkedHashMap<>(Map.of(
             "VISA|10.4", Set.of("visa-10.4", "shared-3ds", "visa-ce3.0", "shared-deadlines"),
             "VISA|13.1", Set.of("visa-13.1", "shared-deadlines", "shared-lifecycle"),
@@ -84,7 +81,6 @@ class RerankComparisonIT {
         }
     }
 
-    // Requires the decisive knowledge, not one document: a redundant corpus offers several paths
     private static boolean bringsTheLiabilityShift(String testCase, DocumentPostProcessor reranker) {
         return rerankFor(store, testCase, reranker).stream().anyMatch(document -> {
             Object section = document.getMetadata().get(RuleCorpusLoader.META_SECTION);

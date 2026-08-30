@@ -24,7 +24,6 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-// .entity() raises BEFORE any validation, and unchecked: it crossed the port (see ADR-0014)
 class LlmDecisionEngineProseTest {
 
     private static final Instant NOW = Instant.parse("2026-08-21T10:00:00Z");
@@ -62,7 +61,6 @@ class LlmDecisionEngineProseTest {
         assertThat(decision.citedRulePassages()).isNotEmpty();
     }
 
-    // The REAL converter raises on prose, so the test cannot assume the wrong exception type
     private static LlmDecisionEngine engineAnswering(String first, String second) {
         ChatClient.Builder builder = mock(ChatClient.Builder.class, RETURNS_DEEP_STUBS);
         BeanOutputConverter<DecisionDraft> converter = new BeanOutputConverter<>(DecisionDraft.class);

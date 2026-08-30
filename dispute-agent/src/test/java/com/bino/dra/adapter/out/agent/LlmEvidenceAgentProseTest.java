@@ -24,7 +24,6 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-// DEGRADES where the decision engine RETRIES: the tools have already answered
 class LlmEvidenceAgentProseTest {
 
     private static final Instant NOW = Instant.parse("2026-08-21T10:00:00Z");
@@ -52,7 +51,6 @@ class LlmEvidenceAgentProseTest {
 
     @Test
     void the_agent_version_records_the_incident_in_the_audit_trail() {
-        // Without the suffix an eval cannot tell "server found nothing" from "model answered badly"
         assertThat(agentAnswering(PROSE).gather(dispute()).agentVersion()).endsWith("+unparsed");
     }
 

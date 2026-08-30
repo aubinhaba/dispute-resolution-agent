@@ -7,7 +7,6 @@ import tools.jackson.core.JacksonException;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-// Runs the real converter on real prose: both adapters go red if Spring AI changes exception type
 class StructuredOutputFailureTest {
 
     private static final String PROSE = """

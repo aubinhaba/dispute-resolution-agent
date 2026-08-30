@@ -9,7 +9,6 @@ import java.time.Instant;
 
 interface DisputeCaseClaimCrud extends Repository<DisputeCaseClaimRow, String> {
 
-    // Not save(): it selects then inserts or updates, reopening the race this closes (ADR-0017)
     @Modifying
     @Query("""
             INSERT INTO dispute_case (dispute_id, submitted_at)

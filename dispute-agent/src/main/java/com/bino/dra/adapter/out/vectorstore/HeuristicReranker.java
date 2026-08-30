@@ -1,5 +1,6 @@
 package com.bino.dra.adapter.out.vectorstore;
 
+import com.bino.dra.adapter.out.support.Config;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.Query;
 import org.springframework.ai.rag.postretrieval.document.DocumentPostProcessor;
@@ -12,21 +13,16 @@ import java.util.Map;
 
 public final class HeuristicReranker implements DocumentPostProcessor {
 
-    // Tiers are lexicographic: no distractor can ever outrank a rule that governs the dispute
     static final double TIER_GOVERNS_DISPUTE = 200.0;
     static final double TIER_CROSS_CUTTING = 100.0;
     static final double TIER_DISTRACTOR = 0.0;
 
-    // Two sections already picked from one sheet let a cross-cutting rule take the next slot
     static final double REDUNDANCY_PENALTY = 0.15;
 
     private final int topK;
 
     public HeuristicReranker(int topK) {
-        if (topK < 1) {
-            throw new IllegalArgumentException("topK must be >= 1, got: " + topK);
-        }
-        this.topK = topK;
+        this.topK = Config.requireAtLeastOne(topK, "topK");
     }
 
     @Override
@@ -55,12 +51,10 @@ public final class HeuristicReranker implements DocumentPostProcessor {
     }
 
     static double score(Document document, String reasonCode, Map<String, Integer> pickedPerSheet) {
-        String documentCode = metadata(document, RuleCorpusLoader.META_REASON_CODE);
-        String appliesTo = metadata(document, RuleCorpusLoader.META_APPLIES_TO);
+        String documentCode = RuleChunks.reasonCode(document);
+        String appliesTo = RuleChunks.appliesTo(document);
 
         double tier;
-        // A reason code is opaque to an embedding model, so declared applicability weighs as much
-        // as the sheet carrying the code (see ADR-0010)
         if ((!reasonCode.isEmpty() && reasonCode.equals(documentCode))
                 || RuleCorpusLoader.applies(appliesTo, reasonCode)) {
             tier = TIER_GOVERNS_DISPUTE;
@@ -80,11 +74,6 @@ public final class HeuristicReranker implements DocumentPostProcessor {
     }
 
     private static String ruleIdOf(Document document) {
-        return metadata(document, RuleCorpusLoader.META_RULE_ID);
-    }
-
-    private static String metadata(Document document, String key) {
-        Object value = document.getMetadata().get(key);
-        return value instanceof String text ? text : "";
+        return RuleChunks.ruleId(document);
     }
 }

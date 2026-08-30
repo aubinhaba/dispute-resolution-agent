@@ -90,8 +90,9 @@
     </build>
 
     <profiles>
-        <!-- Windows behind TLS inspection: the JVM cacerts lacks the corporate CA that curl gets from
-             the Windows store. Activated by OS family, so it stays inert on Linux and in CI -->
+        <!-- Windows behind TLS inspection: the JVM cacerts lacks the corporate CA that curl gets
+             from the Windows store. Activated by OS family, so it stays inert on Linux and in CI.
+             Set as a property, so a plugin needing its own argLine (JaCoCo) must chain @{argLine} -->
         <profile>
             <id>windows-corporate-tls</id>
             <activation>

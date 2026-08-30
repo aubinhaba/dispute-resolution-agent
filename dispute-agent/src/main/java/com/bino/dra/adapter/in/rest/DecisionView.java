@@ -15,22 +15,26 @@ public record DecisionView(
         Provenanced<List<String>> evidenceRefs,
         Provenanced<String> agentVersion,
         Provenanced<Instant> decidedAt) {
-
+    // Must match dra.orchestrator.version in application.yml: renaming that value silently
+    // relabels every deterministic escalation as MODEL
     private static final String DETERMINISTIC_PREFIX = "orchestrator@";
 
     public static DecisionView from(DisputeDecision d) {
-        // One question labels four fields: did a model intervene? The agent version says so
-        Provenance verdict = isDeterministic(d.agentVersion()) ? Provenance.ATTESTED : Provenance.MODEL;
+        boolean deterministic = isDeterministic(d.agentVersion());
 
         return new DecisionView(
-                new Provenanced<>(d.decision(), verdict),
-                new Provenanced<>(d.confidence(), verdict),
-                new Provenanced<>(d.rationale(), verdict),
-                new Provenanced<>(d.citedReasonCode(), verdict),
+                label(d.decision(), deterministic),
+                label(d.confidence(), deterministic),
+                label(d.rationale(), deterministic),
+                label(d.citedReasonCode(), deterministic),
                 Provenanced.attested(d.citedRulePassages()),
                 Provenanced.attested(d.evidenceRefs()),
                 Provenanced.attested(d.agentVersion()),
                 Provenanced.attested(d.decidedAt()));
+    }
+
+    private static <T> Provenanced<T> label(T value, boolean deterministic) {
+        return deterministic ? Provenanced.attested(value) : Provenanced.model(value);
     }
 
     private static boolean isDeterministic(String agentVersion) {

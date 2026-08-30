@@ -6,9 +6,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-// The framework extension point, not a redeclared transport: that bean has no
-// @ConditionalOnMissingBean, so replacing it means owning connection parsing (see ADR-0020)
 @Configuration
+// The transport bean has no @ConditionalOnMissingBean, so this uses the framework extension
+// point rather than replacing it and owning connection parsing (ADR-0020)
 public class McpClientSecurityConfig {
 
     static final String HEADER = "X-MCP-Secret";
@@ -16,8 +16,6 @@ public class McpClientSecurityConfig {
     @Bean
     McpClientCustomizer<HttpClientStreamableHttpTransport.Builder> mcpSharedSecret(
             @Value("${dra.mcp.shared-secret:}") String sharedSecret) {
-
-        // Without the secret the agent discovers zero tools and escalates, silently
         if (sharedSecret == null || sharedSecret.isBlank()) {
             throw new IllegalStateException("""
                     dra.mcp.shared-secret is empty: the agent refuses to start.

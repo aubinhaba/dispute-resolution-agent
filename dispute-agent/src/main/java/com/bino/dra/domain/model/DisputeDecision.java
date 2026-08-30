@@ -7,7 +7,6 @@ import java.util.Objects;
 public record DisputeDecision(
         String disputeId,
         Decision decision,
-        // Self-reported by the model and poorly calibrated: audit it, never route on it alone
         double confidence,
         String rationale,
         String citedReasonCode,
@@ -16,6 +15,10 @@ public record DisputeDecision(
         String agentVersion,
         Instant decidedAt
 ) {
+    public static final String ESCALATION_PREFIX = "[AUTOMATIC ESCALATION - ";
+
+    private static final double NO_CONFIDENCE = 0.0;
+
     public DisputeDecision {
         Objects.requireNonNull(disputeId, "disputeId required");
         Objects.requireNonNull(decision, "decision required");
@@ -24,5 +27,24 @@ public record DisputeDecision(
         }
         citedRulePassages = citedRulePassages == null ? List.of() : List.copyOf(citedRulePassages);
         evidenceRefs = evidenceRefs == null ? List.of() : List.copyOf(evidenceRefs);
+    }
+
+    public static DisputeDecision escalation(String disputeId, String reason, String detail,
+                                             String citedReasonCode, List<String> rulePassages,
+                                             String agentVersion, Instant decidedAt) {
+        return new DisputeDecision(disputeId, Decision.ESCALATE, NO_CONFIDENCE,
+                ESCALATION_PREFIX + reason + "] " + detail,
+                citedReasonCode, rulePassages, List.of(), agentVersion, decidedAt);
+    }
+
+    public DisputeDecision escalatedBecause(String reason) {
+        return new DisputeDecision(disputeId, Decision.ESCALATE, confidence,
+                ESCALATION_PREFIX + reason + "] " + rationale,
+                citedReasonCode, citedRulePassages, evidenceRefs, agentVersion, decidedAt);
+    }
+
+    public DisputeDecision withEvidenceRefs(List<String> attestedRefs) {
+        return new DisputeDecision(disputeId, decision, confidence, rationale, citedReasonCode,
+                citedRulePassages, attestedRefs, agentVersion, decidedAt);
     }
 }

@@ -27,7 +27,6 @@ class OrchestratorIT {
     private static Dispute dispute(String id, String txnId, String reasonCode, long minorUnits, String claim) {
         return new Dispute(
                 id, txnId, "MERCH-ELEC-01", Network.VISA, reasonCode,
-                // 30 days, not 1: below the margin the deadline rule would capture every case here
                 new Money(minorUnits, "EUR"), Instant.now(), Instant.now().plus(Duration.ofDays(30)), claim);
     }
 
@@ -37,21 +36,18 @@ class OrchestratorIT {
                 dispute("EVAL-002", "TXN-EVAL-002", "10.4", 12_000L,
                         "I do not recognise this transaction on my statement."));
 
-        // Structural invariants only: the model is free to vary, so its verdict is never asserted
         assertThat(decision.disputeId()).isEqualTo("EVAL-002");
         assertThat(decision.decision()).isNotNull();
         assertThat(decision.confidence()).isBetween(0.0, 1.0);
         assertThat(decision.decidedAt()).isNotNull();
         assertThat(decision.evidenceRefs()).contains("TXN-EVAL-002");
         assertThat(decision.citedRulePassages()).isNotEmpty();
-        // The anchor survives the model: this assertion failed before the output guardrail existed
         assertThat(decision.citedRulePassages())
                 .allSatisfy(p -> assertThat(p).matches("^\\[[^\\]]+].*"));
         assertThat(decision.citedReasonCode()).isEqualTo("10.4");
         assertThat(decision.rationale()).isNotBlank();
     }
 
-    // The only value assertion in this class, and it holds because this path bypasses the model
     @Test
     void escalates_above_the_threshold_on_a_strong_file_and_keeps_the_trail() {
         DisputeDecision decision = orchestrator.resolve(
@@ -62,7 +58,6 @@ class OrchestratorIT {
         assertThat(decision.rationale()).startsWith("[AUTOMATIC ESCALATION");
         assertThat(decision.evidenceRefs()).contains("TXN-EVAL-004");
         assertThat(decision.citedRulePassages()).isNotEmpty();
-        // startsWith: the version carries a suffix when the output had to be repaired (ADR-0014)
         assertThat(decision.agentVersion()).startsWith("decision-llm@v1.2.0");
     }
 

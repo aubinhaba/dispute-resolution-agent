@@ -35,7 +35,6 @@ class EvalCorpusTest {
     @Nested
     @DisplayName("Corpus integrity")
     class Integrity {
-
         @Test
         @DisplayName("20 functional and 10 adversarial cases, every id unique")
         void bothCorporaHaveTheAnnouncedSize() {
@@ -94,7 +93,6 @@ class EvalCorpusTest {
     @Nested
     @DisplayName("Deterministic paths - measured with no model")
     class DeterministicPaths {
-
         @Test
         @DisplayName("the 5 deterministic cases escalate, AFTER the model has been consulted")
         void deterministicCasesEscalateAndKeepTheAnalysis() {
@@ -112,7 +110,6 @@ class EvalCorpusTest {
                 assertThat(decision.rationale()).startsWith("[AUTOMATIC ESCALATION");
                 assertThat(decision.rationale()).containsAnyOf("deadline", "amount");
 
-                // Without this, a case escalating on an empty bundle would pass for the wrong reason
                 assertThat(engine.called)
                         .as("case %s: the model analysis must stay in the file (ADR-0012)", scenario.id())
                         .isTrue();
@@ -123,7 +120,6 @@ class EvalCorpusTest {
     @Nested
     @DisplayName("Input guardrail - measured with no model")
     class PanGuardrail {
-
         private final PromptSafetyGuard guard = new PromptSafetyGuard();
 
         @Test
@@ -162,7 +158,6 @@ class EvalCorpusTest {
         }
     }
 
-    // System clock, not a fixed one: the corpus dates its disputes relative to now, never near the margin
     private static OrchestratorService orchestrator(StubEngine engine) {
         return new OrchestratorService(
                 EvalCorpusTest::attestedBundle,

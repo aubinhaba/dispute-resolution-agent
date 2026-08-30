@@ -91,7 +91,6 @@ class RawToolLoopDemoIT {
                         : tool.call(request.arguments());
                 toolCalls++;
 
-                // Correlated by id, not by position: a turn may request several tools at once
                 results.add(new ToolResponseMessage.ToolResponse(request.id(), request.name(), result));
                 System.out.printf("        -> %s%n", truncate(result));
             }

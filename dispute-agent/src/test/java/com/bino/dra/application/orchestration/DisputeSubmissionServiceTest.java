@@ -19,7 +19,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// No Spring, no network, no key
 class DisputeSubmissionServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-21T10:00:00Z");
@@ -55,7 +54,6 @@ class DisputeSubmissionServiceTest {
 
         assertThat(replay.created()).isFalse();
         assertThat(replay.state().disputeId()).isEqualTo("D-IDEM");
-        // The list is the assertion: created=false while still dispatching would bill twice
         assertThat(dispatches).hasSize(1);
     }
 
@@ -74,7 +72,6 @@ class DisputeSubmissionServiceTest {
 
     @Test
     void the_PENDING_trail_already_exists_when_the_dispatcher_is_called() {
-        // Dispatching first lets the worker finish before PENDING exists, overwriting the DONE
         List<CaseStatus> seenByDispatcher = new ArrayList<>();
         DisputeSubmissionService withSpy = new DisputeSubmissionService(
                 repository,
@@ -85,7 +82,6 @@ class DisputeSubmissionServiceTest {
 
         withSpy.submit(dispute("D-2"));
 
-        // containsExactly: a content-only assertion would pass on an empty list, proving nothing
         assertThat(seenByDispatcher).containsExactly(CaseStatus.PENDING);
     }
 

@@ -1,5 +1,7 @@
 package com.bino.dra.adapter.out.vectorstore;
 
+import com.bino.dra.adapter.out.support.Config;
+import com.bino.dra.adapter.out.support.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -18,7 +20,6 @@ public final class LlmReranker implements DocumentPostProcessor {
 
     private static final Logger log = LoggerFactory.getLogger(LlmReranker.class);
 
-    // Context budget: full passages for every candidate would cost more than the decision
     static final int SNIPPET_MAX_CHARS = 320;
 
     private final ChatClient chatClient;
@@ -26,12 +27,9 @@ public final class LlmReranker implements DocumentPostProcessor {
     private final int topK;
 
     public LlmReranker(ChatClient chatClient, String systemPrompt, int topK) {
-        if (topK < 1) {
-            throw new IllegalArgumentException("topK must be >= 1, got: " + topK);
-        }
         this.chatClient = chatClient;
         this.systemPrompt = systemPrompt;
-        this.topK = topK;
+        this.topK = Config.requireAtLeastOne(topK, "topK");
     }
 
     @Override
@@ -48,8 +46,7 @@ public final class LlmReranker implements DocumentPostProcessor {
                     .entity(RerankDraft.class);
             requestedOrder = draft == null ? List.of() : draft.orderedIds();
         } catch (RuntimeException e) {
-            // Degrade, never rethrow: reranking only improves an order it did not create
-            log.warn("LLM reranking unavailable, falling back to vector order: {}", e.toString());
+            log.warn("LLM reranking unavailable, falling back to vector order", e);
             requestedOrder = List.of();
         }
         return reorder(documents, requestedOrder, topK);
@@ -58,13 +55,12 @@ public final class LlmReranker implements DocumentPostProcessor {
     static List<Document> reorder(List<Document> candidates, List<String> rankedIds, int topK) {
         Map<String, Document> byId = new LinkedHashMap<>();
         for (Document candidate : candidates) {
-            byId.put(RuleCorpusLoader.chunkId(candidate), candidate);
+            byId.put(RuleChunks.chunkId(candidate), candidate);
         }
 
         Set<String> selected = new LinkedHashSet<>();
         if (rankedIds != null) {
             for (String id : rankedIds) {
-                // Candidate ids only: an invented citation would point at nothing (see ADR-0010)
                 if (byId.containsKey(id) && selected.size() < topK) {
                     selected.add(id);
                 }
@@ -74,7 +70,7 @@ public final class LlmReranker implements DocumentPostProcessor {
             if (selected.size() >= topK) {
                 break;
             }
-            selected.add(candidate.getId());
+            selected.add(RuleChunks.chunkId(candidate));
         }
 
         List<Document> result = new ArrayList<>(selected.size());
@@ -85,27 +81,25 @@ public final class LlmReranker implements DocumentPostProcessor {
     }
 
     static String buildUserMessage(Query query, List<Document> candidates, int topK) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("# Dispute\n")
-                .append("network: ").append(RuleQuery.networkOf(query)).append('\n')
-                .append("reason code: ").append(RuleQuery.reasonCodeOf(query)).append('\n')
-                .append("\n# Return at most ").append(topK).append(" identifiers\n")
-                .append("\n# Candidate rule passages\n");
-
+        StringBuilder passages = new StringBuilder();
         for (Document candidate : candidates) {
-            sb.append("\n- id: ").append(candidate.getId()).append('\n')
+            passages.append("\n- id: ").append(RuleChunks.chunkId(candidate)).append('\n')
                     .append("  text: ").append(snippet(candidate.getText())).append('\n');
         }
-        return sb.toString();
+
+        return """
+                # Dispute
+                network: %s
+                reason code: %s
+
+                # Return at most %d identifiers
+
+                # Candidate rule passages
+                %s""".formatted(
+                RuleQuery.networkOf(query), RuleQuery.reasonCodeOf(query), topK, passages);
     }
 
     private static String snippet(String text) {
-        if (text == null) {
-            return "";
-        }
-        String singleLine = text.replace('\n', ' ').replaceAll(" +", " ").strip();
-        return singleLine.length() <= SNIPPET_MAX_CHARS
-                ? singleLine
-                : singleLine.substring(0, SNIPPET_MAX_CHARS) + "...";
+        return Text.truncate(Text.flatten(text), SNIPPET_MAX_CHARS);
     }
 }

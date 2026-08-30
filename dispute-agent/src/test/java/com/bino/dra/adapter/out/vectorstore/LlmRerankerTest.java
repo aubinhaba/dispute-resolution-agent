@@ -4,8 +4,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.rag.Query;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -32,7 +34,6 @@ class LlmRerankerTest {
     @Test
     void an_invented_identifier_is_dropped_without_losing_the_others() {
         List<Document> result = LlmReranker.reorder(CANDIDATES,
-                // Hallucination is usually truncation of a real id, not pure invention
                 List.of("visa-10.4#liability", "shared-3ds#principle", "visa-10.4#scope"), TOP_K);
 
         assertThat(result).extracting(Document::getId)
@@ -73,7 +74,6 @@ class LlmRerankerTest {
         List<Document> result = LlmReranker.reorder(CANDIDATES,
                 CANDIDATES.stream().map(Document::getId).toList(), TOP_K);
 
-        // A prompt is not a guarantee: the code truncates
         assertThat(result).hasSize(TOP_K);
     }
 
@@ -103,7 +103,39 @@ class LlmRerankerTest {
         assertThat(message.length()).isLessThan(LlmReranker.SNIPPET_MAX_CHARS + 300);
     }
 
+    @Test
+    void a_production_shaped_chunk_survives_the_fallback_to_the_vector_order() {
+        List<Document> candidates = List.of(
+                productionChunk("visa-10.4#scope"), productionChunk("shared-3ds#principle"));
+
+        List<Document> result = LlmReranker.reorder(candidates, List.of(), TOP_K);
+
+        assertThat(result).extracting(RuleChunks::chunkId)
+                .containsExactly("visa-10.4#scope", "shared-3ds#principle");
+    }
+
+    @Test
+    void the_identifier_shown_to_the_model_is_the_one_the_reordering_matches_on() {
+        List<Document> candidates = List.of(
+                productionChunk("visa-13.3#scope"), productionChunk("visa-10.4#scope"));
+
+        String message = LlmReranker.buildUserMessage(RuleQuery.of("10.4", "VISA"), candidates, TOP_K);
+        assertThat(message).contains("id: visa-10.4#scope");
+
+        List<Document> reordered = LlmReranker.reorder(candidates, List.of("visa-10.4#scope"), TOP_K);
+        assertThat(reordered).extracting(RuleChunks::chunkId)
+                .startsWith("visa-10.4#scope");
+    }
+
     private static Document chunk(String id) {
         return Document.builder().id(id).text("content of " + id).metadata(Map.of()).build();
+    }
+
+    private static Document productionChunk(String chunkId) {
+        return Document.builder()
+                .id(UUID.nameUUIDFromBytes(chunkId.getBytes(StandardCharsets.UTF_8)).toString())
+                .text("content of " + chunkId)
+                .metadata(Map.of(RuleCorpusLoader.META_CHUNK_ID, chunkId))
+                .build();
     }
 }

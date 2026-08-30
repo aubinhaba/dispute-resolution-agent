@@ -1,9 +1,9 @@
-# The measurement of a non-deterministic system, SEPARATE from build.yml. The harness replays 30
-# labelled cases against real model calls - minutes of wall time and ~90-120 billed calls. Wiring
-# it onto every push would make it expensive enough that it eventually gets disabled.
+# Measures a non-deterministic system, kept separate from build.yml. The harness replays 30
+# labelled cases against real model calls: minutes of wall time and roughly 90-120 billed
+# calls, which is too expensive to run on every push.
 #
-# IT FAILS WHEN THE SECRET IS MISSING, instead of skipping silently. A gate you can skip without
-# noticing is worse than no gate: it grants the confidence without the measurement.
+# Fails when the secret is absent rather than skipping silently, so a missing secret cannot
+# be mistaken for a passing gate.
 
 name: eval-gate
 
@@ -20,17 +20,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # First step, before any build: fail fast and name the cause. Without this guard a missing
-      # secret surfaces as an API 400 several minutes in, on the nominal code path, and looks
-      # exactly like a regression
+      # Before any build, so the cause is named. Without this guard a missing secret surfaces
+      # as an API 400 several minutes in, on the nominal code path, where it looks like a
+      # regression
       - name: Is the secret configured?
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::error::ANTHROPIC_API_KEY is missing. This workflow MEASURES the system: with"
-            echo "::error::no key it can measure nothing, and skipping silently would grant the"
-            echo "::error::confidence without the measurement. Set it in Settings > Secrets > Actions."
+            echo "::error::ANTHROPIC_API_KEY is missing. This workflow measures the system"
+            echo "::error::against real model calls and can measure nothing without a key."
+            echo "::error::Set it in Settings > Secrets > Actions."
             exit 1
           fi
 
@@ -44,13 +44,13 @@ jobs:
       - name: Eval harness
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        # EvalHarnessIT writes target/eval-report.json and carries its own FLOOR thresholds.
-        # Floors and not equalities: two runs of the same code give 0.85 and 0.90, so a gate
-        # asserting equality would be red half the time and end up disabled
+        # EvalHarnessIT writes target/eval-report.json and carries its own floor thresholds.
+        # Floors rather than equalities: two runs of the same code give 0.85 and 0.90, so a
+        # gate asserting equality would be red half the time
         run: ./mvnw -B --no-transfer-progress verify -Dit.test=EvalHarnessIT
 
       - name: Publish the eval report
-        # always(): a report from a RED run is more interesting than one from a green run
+        # always(): the report from a failing run is the one worth reading
         if: always()
         uses: actions/upload-artifact@v4
         with:

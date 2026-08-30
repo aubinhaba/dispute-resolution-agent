@@ -80,11 +80,11 @@ orchestrator, with a JSON report per run.
 | `injectionBlockRate` | 1.00 (9 attacks) |
 | `rulePassageAttestationRate` | 1.00 |
 
-What code guarantees holds at 100%; what rests on the model's judgement holds at 85–90%. Gates
-assert floors, never equalities. Reranking was measured the same way: the heuristic reranker takes
+The metrics the code guarantees hold at 100%; those resting on the model's judgement hold at
+85–90%. The gates assert floors rather than equalities. Reranking was measured the same way: the heuristic reranker takes
 precision@5 from 0.40 to 1.00 and the LLM reranker buys nothing on top, so the deterministic one is
-the default. **The first run scored 0.55 — and six of the nine failures were a contradiction
-between two specifications, not model errors** · [docs/EVALUATION.md](docs/EVALUATION.md)
+the default. The first run scored 0.55, and six of the nine failures turned out to be a contradiction
+between two specifications rather than model errors · [docs/EVALUATION.md](docs/EVALUATION.md)
 
 ## Design decisions
 
@@ -92,7 +92,7 @@ between two specifications, not model errors** · [docs/EVALUATION.md](docs/EVAL
 - **The model proposes, the system attests** — every field with evidential weight is produced by the system · [ADR-0004](docs/adr/ADR-0004-validated-untrusted-llm-output.md)
 - **A hard business rule is code, not a prompt line** — amount threshold and representment deadline override the verdict · [ADR-0012](docs/adr/ADR-0012-deterministic-rule-overrides-the-model.md)
 - **A validation failure is a decision, not an exception** — one repair round-trip, then a motivated `ESCALATE` · [ADR-0014](docs/adr/ADR-0014-validation-failure-becomes-an-escalate.md)
-- **Provenance is a property of the contract, not of a UI** — a colour in a DOM is neither testable nor gatable · [ADR-0018](docs/adr/ADR-0018-provenance-as-a-contract-property.md)
+- **Provenance is a property of the contract, not of a UI** — a colour in a DOM cannot be tested or gated · [ADR-0018](docs/adr/ADR-0018-provenance-as-a-contract-property.md)
 
 All nineteen, each with its rejected alternatives → [`docs/adr/`](docs/adr/README.md)
 
@@ -112,9 +112,9 @@ curl -sSi -X POST localhost:8080/disputes -H "X-API-Key: $KEY" \
 curl -sS localhost:8080/disputes/D-DEMO-1 -H "X-API-Key: $KEY"                   # read it back
 ```
 
-That claim carries a Luhn-valid PAN, so `PromptSafetyGuard` refuses it before a prompt is built and
-the orchestrator issues a motivated `ESCALATE` itself — a complete decision, no model consulted, no
-token spent. Every field comes back carrying where it came from:
+That claim carries a Luhn-valid PAN, so `PromptSafetyGuard` refuses it before a prompt is built
+and the orchestrator issues a motivated `ESCALATE` itself: a complete decision, with no model
+consulted. Every field comes back carrying where it came from:
 
 ```json
 "rationale":   { "value": "...", "provenance": "MODEL" },

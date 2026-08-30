@@ -43,13 +43,13 @@ because it is derived from it every time.
   whose central abstraction had never been crossed by a second implementation. Both leaks below
   would have stayed invisible until AWS.
 - **Reindexing only when the table is empty.** Three lines fewer, but an index that silently keeps
-  rules removed from the corpus. A RAG citing a repealed rule is worse than a slow RAG.
+  rules removed from the corpus, which would let a citation point at a repealed rule.
 - **A corpus fingerprint** so as to reindex only on change. ~45 lines with its test, to save ~2 s at
   startup. Unconditional truncation is shorter AND safer.
 
 ## Consequences
 
-**What the second implementation REVEALED, and it is worth more than pgvector itself.**
+**What the second implementation revealed.**
 
 1. **The audit identifier lived in a field owned by storage.** `RuleCorpusLoader` put `ruleId#section`
    into `Document.getId()`, and `LlmComplianceAgent` made it the `[chunk-id]` prefix that

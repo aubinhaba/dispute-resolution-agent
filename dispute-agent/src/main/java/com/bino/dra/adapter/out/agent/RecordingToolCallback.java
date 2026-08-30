@@ -44,7 +44,6 @@ final class RecordingToolCallback implements ToolCallback {
             return result;
         } catch (RuntimeException ex) {
             recorder.recordFailure(toolName);
-            // Rethrown not swallowed: Spring AI turns it into a tool message the model self-corrects on
             throw ex;
         }
     }

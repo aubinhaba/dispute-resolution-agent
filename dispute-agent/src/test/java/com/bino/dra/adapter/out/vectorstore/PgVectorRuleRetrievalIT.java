@@ -14,7 +14,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// What matters is what did NOT change for this to pass: agent, reranker and port (see ADR-0005)
 @SpringBootTest(properties = {
         "spring.ai.anthropic.api-key=not-used-by-this-test",
         "dra.rag.store=pgvector",
@@ -39,13 +38,11 @@ class PgVectorRuleRetrievalIT {
 
     @Test
     void the_wired_store_is_pgvector_and_not_the_in_memory_one() {
-        // Without this, a condition mistake would run everything else green on SimpleVectorStore
         assertThat(store.getClass().getSimpleName()).isEqualTo("PgVectorStore");
     }
 
     @Test
     void the_whole_corpus_is_indexed_in_postgres_without_duplicates() {
-        // Counted in SQL: asking the object under test to validate itself proves nothing
         Integer rows = jdbc.queryForObject("SELECT count(*) FROM rule_chunk", Integer.class);
 
         assertThat(rows).isEqualTo(EXPECTED_TOTAL_CHUNKS);

@@ -13,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @ConditionalOnProperty(name = "dra.persistence", havingValue = "memory")
 public class InMemoryDisputeCaseRepository implements DisputeCaseRepository {
 
-    // Concurrent: the controller writes on a Tomcat thread, the worker on a dispatcher thread
     private final Map<String, DisputeCase> cases = new ConcurrentHashMap<>();
 
     @Override

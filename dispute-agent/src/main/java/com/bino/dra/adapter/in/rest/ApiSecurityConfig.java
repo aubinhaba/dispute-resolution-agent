@@ -20,7 +20,6 @@ public class ApiSecurityConfig {
     private final String apiKey;
 
     ApiSecurityConfig(@Value("${dra.security.api-key:}") String apiKey) {
-        // Fail at startup rather than open up: a service that starts unauthenticated looks protected
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("""
                     dra.security.api-key is empty: the application refuses to start.
@@ -36,7 +35,8 @@ public class ApiSecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(routes -> routes
-                        // First rule: a 404 re-dispatches to /error unauthenticated, and its 401 replaces the real status
+                        // First: a 404 re-dispatches to /error unauthenticated, and that 401
+                        // would replace the real status
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/audit.html", "/favicon.ico").permitAll()

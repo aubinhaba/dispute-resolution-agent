@@ -4,7 +4,6 @@ import com.bino.dra.application.guard.PromptSafetyGuard;
 import com.bino.dra.application.port.out.DecisionEngine;
 import com.bino.dra.application.port.out.EvidenceGatherer;
 import com.bino.dra.application.port.out.RuleRetriever;
-import com.bino.dra.domain.model.Decision;
 import com.bino.dra.domain.model.Dispute;
 import com.bino.dra.domain.model.DisputeDecision;
 import com.bino.dra.domain.model.EvidenceBundle;
@@ -45,13 +44,12 @@ public class OrchestratorService {
         this.clock = Objects.requireNonNull(clock);
         this.escalationThresholdMinorUnits = escalationThresholdMinorUnits;
         this.representmentMinRemaining = Duration.ofDays(representmentMinDays);
-        this.agentVersion = agentVersion;
+        this.agentVersion = Objects.requireNonNull(agentVersion);
     }
 
     public DisputeDecision resolve(Dispute dispute) {
         Objects.requireNonNull(dispute, "dispute required");
 
-        // A detected PAN is rejected, not masked: rewriting cardholder data would assume our mask is right
         Optional<String> unsafeField = guard.reject(dispute);
         if (unsafeField.isPresent()) {
             return escalateWithoutModel(dispute, List.of(),
@@ -63,7 +61,6 @@ public class OrchestratorService {
         List<String> rulePassages =
                 ruleRetriever.retrieveRulePassages(safe.reasonCode(), safe.network());
 
-        // No model call on an empty bundle: there is nothing to reason about
         if (bundle.isEmpty()) {
             return escalateWithoutModel(safe, rulePassages, "no attested evidence from the tools");
         }
@@ -73,40 +70,25 @@ public class OrchestratorService {
         return applyGovernance(safe, bundle, proposed);
     }
 
-    // The reason never echoes an input field: on the PAN path that would leak what was just refused
     private DisputeDecision escalateWithoutModel(Dispute dispute, List<String> rulePassages, String reason) {
-        return new DisputeDecision(
+        return DisputeDecision.escalation(
                 dispute.disputeId(),
-                Decision.ESCALATE,
-                0.0,
-                "[AUTOMATIC ESCALATION - " + reason + "] No model was consulted on this dispute. "
-                        + "Human review required.",
+                reason,
+                "No model was consulted on this dispute. Human review required.",
                 dispute.reasonCode(),
                 rulePassages,
-                List.of(),
                 agentVersion,
                 clock.instant());
     }
 
     private DisputeDecision applyGovernance(Dispute dispute, EvidenceBundle bundle, DisputeDecision proposed) {
-        Optional<String> escalation = escalationReason(dispute);
+        DisputeDecision attested = proposed.withEvidenceRefs(bundle.evidenceRefs());
 
-        return new DisputeDecision(
-                proposed.disputeId(),
-                escalation.isPresent() ? Decision.ESCALATE : proposed.decision(),
-                proposed.confidence(),
-                escalation.map(reason -> "[AUTOMATIC ESCALATION - " + reason + "] " + proposed.rationale())
-                        .orElseGet(proposed::rationale),
-                proposed.citedReasonCode(),
-                // Model-selected but validated upstream: each citation carries a retrieved chunk id
-                proposed.citedRulePassages(),
-                // Attested from the observed tool trail, not from what the model claimed to have used
-                bundle.evidenceRefs(),
-                proposed.agentVersion(),
-                proposed.decidedAt());
+        return escalationReason(dispute)
+                .map(attested::escalatedBecause)
+                .orElse(attested);
     }
 
-    // Both rules override the model without skipping the call; deadline wins over amount (ADR-0012)
     private Optional<String> escalationReason(Dispute dispute) {
         Optional<String> deadline = representmentDeadlineReason(dispute);
         if (deadline.isPresent()) {

@@ -24,7 +24,7 @@ to it. ADR-0016 put `get_transaction` and its neighbours on a socket.
 for it on open and keeps it in `sessionStorage` — cleared when the tab closes, unlike
 `localStorage`. One server-side check, therefore one thing to test.
 
-**A second, DISTINCT secret for MCP** (`X-MCP-Secret`). Compromising the exposed surface must not
+**A second, distinct secret for MCP** (`X-MCP-Secret`). Compromising the exposed surface must not
 grant access to payment data: the two secrets do not protect the same thing and do not live at the
 same place on the network.
 

@@ -68,12 +68,10 @@ public class PaymentTools {
                     required = false)
             Integer limit) {
         requireText(customerRef, "customerRef");
-        // Unknown customer ≠ customer with no recent history: an empty list must stay a real answer
         if (!store.knowsCustomer(customerRef)) {
             throw new IllegalArgumentException("Unknown customerRef '" + customerRef
                     + "'. Use the exact customerRef returned by get_transaction.");
         }
-        // Clamped rather than rejected: serves the intent while protecting the context budget
         int days = clamp(lookbackDays, DEFAULT_LOOKBACK_DAYS, MAX_LOOKBACK_DAYS);
         int max = clamp(limit, DEFAULT_LIMIT, MAX_LIMIT);
         return store.customerHistory(customerRef, days, max);
@@ -95,7 +93,6 @@ public class PaymentTools {
                     required = true)
             String transactionId) {
         requireText(transactionId, "transactionId");
-        // Optional.empty() = unknown id (error); empty list = "nothing related" (valid answer)
         return store.relatedTransactions(transactionId)
                 .orElseThrow(() -> unknownTransaction(transactionId));
     }
@@ -120,7 +117,6 @@ public class PaymentTools {
         }
         return store.findFulfillment(transactionId)
                 .map(FulfillmentLookupResult::of)
-                // Unknown id is an error above; no record is a valid answer the model must weigh
                 .orElseGet(FulfillmentLookupResult::none);
     }
 

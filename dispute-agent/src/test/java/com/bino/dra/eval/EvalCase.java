@@ -1,4 +1,6 @@
-package com.bino.dra.domain.model;
+package com.bino.dra.eval;
+
+import com.bino.dra.domain.model.Decision;
 
 import java.util.Objects;
 

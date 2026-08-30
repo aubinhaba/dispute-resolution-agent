@@ -23,7 +23,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// The DONE/FAILED boundary: misplaced, it presents an escalation as a system outage
 class DisputeJobServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-21T10:00:00Z");
@@ -44,7 +43,6 @@ class DisputeJobServiceTest {
 
     @Test
     void an_ESCALATE_is_a_processing_success_and_not_a_failure() {
-        // Protects the total contract: a dispute yields a decision even when declining (ADR-0014)
         DisputeCaseRepository repository = new CaseRepositoryDouble();
         DisputeJobService service = new DisputeJobService(
                 orchestrator(decision("D-2", Decision.ESCALATE)), repository, CLOCK);
@@ -71,7 +69,6 @@ class DisputeJobServiceTest {
 
     @Test
     void the_failure_reason_never_echoes_the_dispute_content() {
-        // An echoed exception message would replay in the trail what was just refused
         DisputeCaseRepository repository = new CaseRepositoryDouble();
         DisputeJobService service = new DisputeJobService(failingOrchestrator(), repository, CLOCK);
 
@@ -92,7 +89,6 @@ class DisputeJobServiceTest {
         });
     }
 
-    // A real orchestrator: testing a boundary against an imitation validates the imitation
     private static OrchestratorService build(DecisionEngine engine) {
         EvidenceGatherer evidence = dispute -> new EvidenceBundle(
                 dispute.disputeId(), dispute.transactionId(), "summary", List.of("one finding"),

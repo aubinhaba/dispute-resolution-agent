@@ -157,7 +157,6 @@ class LlmEvidenceAgentTest {
     }
 
     private static final class FakeToolCallback implements ToolCallback {
-
         private final String name;
         private final String response;
         private final RuntimeException failure;

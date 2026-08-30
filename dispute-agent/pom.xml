@@ -61,7 +61,7 @@
             <artifactId>spring-ai-rag</artifactId>
         </dependency>
 
-        <!-- Spring Data JDBC and not JPA: an append-only model uses no entity lifecycle (ADR-0017) -->
+        <!-- Spring Data JDBC rather than JPA: an append-only model uses no entity lifecycle (ADR-0017) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jdbc</artifactId>

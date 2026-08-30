@@ -6,7 +6,6 @@ import com.bino.dra.domain.model.EvidenceBundle;
 
 import java.util.List;
 
-
 public interface DecisionEngine {
 
     DisputeDecision decide(Dispute dispute, EvidenceBundle evidence, List<String> rulePassages);

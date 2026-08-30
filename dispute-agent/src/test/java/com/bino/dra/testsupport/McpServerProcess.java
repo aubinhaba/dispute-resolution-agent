@@ -12,12 +12,10 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 
-// The real cost of the move to Streamable HTTP, and it sits entirely here (see ADR-0016)
 public final class McpServerProcess {
 
     private static final Path JAR =
             Path.of("..", "mcp-payment-server", "target", "mcp-payment-server-0.1.0-SNAPSHOT.jar");
-    // Fixed and not random: application.yml defaults to this port, so the fixture stays invisible
     private static final int PORT = 8081;
     private static final Duration STARTUP_MAX = Duration.ofSeconds(90);
 
@@ -56,7 +54,6 @@ public final class McpServerProcess {
         }
     }
 
-    // Waits on the probe, never on a sleep: startup varies 3x between a warm box and cold CI
     private static void awaitReadiness() {
         HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
         HttpRequest probe = HttpRequest.newBuilder()
@@ -96,7 +93,6 @@ public final class McpServerProcess {
         }
     }
 
-    // Compose uses this port too: left running, McpSharedSecretIT passes for the wrong reason
     private static void refuseForeignPeer() {
         try (Socket probe = new Socket()) {
             probe.connect(new InetSocketAddress("localhost", PORT), 300);

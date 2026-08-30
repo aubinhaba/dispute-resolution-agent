@@ -1,5 +1,6 @@
 package com.bino.dra.adapter.out.dispatch;
 
+import com.bino.dra.adapter.out.support.Config;
 import com.bino.dra.application.port.in.DisputeJobRunner;
 import com.bino.dra.application.port.out.DisputeJobDispatcher;
 import com.bino.dra.domain.model.Dispute;
@@ -25,9 +26,10 @@ public class ExecutorDisputeJobDispatcher implements DisputeJobDispatcher {
     public ExecutorDisputeJobDispatcher(DisputeJobRunner runner,
                                         @Value("${dra.submission.worker-pool-size}") int poolSize) {
         this.runner = runner;
-        this.pool = Executors.newFixedThreadPool(poolSize, r -> {
+        int workers = Config.requireAtLeastOne(poolSize, "dra.submission.worker-pool-size");
+        this.pool = Executors.newFixedThreadPool(workers, r -> {
             Thread t = new Thread(r, "dispute-worker");
-            // Non-daemon: the JVM must wait for these threads, or an in-flight dispute is killed
+            // Threads created from Tomcat's inherit daemon status; the JVM must wait for these
             t.setDaemon(false);
             return t;
         });

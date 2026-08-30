@@ -1,5 +1,7 @@
 package com.bino.dra.adapter.out.agent;
 
+import com.bino.dra.adapter.out.support.Config;
+import com.bino.dra.adapter.out.vectorstore.RuleChunks;
 import com.bino.dra.adapter.out.vectorstore.RuleCorpusLoader;
 import com.bino.dra.adapter.out.vectorstore.RuleQuery;
 import com.bino.dra.application.port.out.RuleRetriever;
@@ -29,15 +31,11 @@ public class LlmComplianceAgent implements RuleRetriever {
                               @Value("${dra.rag.candidates}") int candidates) {
         this.ruleVectorStore = Objects.requireNonNull(ruleVectorStore, "ruleVectorStore required");
         this.reranker = Objects.requireNonNull(ruleReranker, "ruleReranker required");
-        if (candidates < 1) {
-            throw new IllegalArgumentException("dra.rag.candidates must be >= 1, got: " + candidates);
-        }
-        this.candidates = candidates;
+        this.candidates = Config.requireAtLeastOne(candidates, "dra.rag.candidates");
     }
 
     @Override
     public List<String> retrieveRulePassages(String reasonCode, Network network) {
-        // Only hard failure of this port: without a network the filter cannot be built
         Objects.requireNonNull(network, "network required to retrieve applicable rules");
         String code = reasonCode == null ? "" : reasonCode.strip();
 
@@ -46,8 +44,6 @@ public class LlmComplianceAgent implements RuleRetriever {
         List<Document> candidateChunks = VectorStoreDocumentRetriever.builder()
                 .vectorStore(ruleVectorStore)
                 .topK(candidates)
-                // No threshold here: it would drop cross-cutting rules whose vectors sit far from
-                // a reason-code query, and reranking is what sorts
                 .similarityThreshold(0.0)
                 .filterExpression(networkFilter(network))
                 .build()
@@ -58,7 +54,6 @@ public class LlmComplianceAgent implements RuleRetriever {
                 .toList();
     }
 
-    // "network OR ANY": dropping the ANY branch silently discards 3-D Secure, deadlines and lifecycle
     static Filter.Expression networkFilter(Network network) {
         FilterExpressionBuilder b = new FilterExpressionBuilder();
         return b.or(
@@ -66,24 +61,8 @@ public class LlmComplianceAgent implements RuleRetriever {
                 b.eq(RuleCorpusLoader.META_NETWORK, RuleCorpusLoader.ANY)).build();
     }
 
-    // The bracketed prefix is the audit trail: it points at a real, stable corpus position
     static String cite(Document chunk) {
-        String title = metadata(chunk, RuleCorpusLoader.META_TITLE);
-        String section = metadata(chunk, RuleCorpusLoader.META_SECTION);
-        // RuleCorpusLoader.chunkId not chunk.getId(): getId() carries a UUID PgVectorStore requires
-        return "[%s] %s - %s: %s".formatted(RuleCorpusLoader.chunkId(chunk), title, section, bodyOf(chunk));
-    }
-
-    private static String bodyOf(Document chunk) {
-        String text = chunk.getText() == null ? "" : chunk.getText();
-        String[] parts = text.split("\n\n", 2);
-        String body = parts.length == 2 ? parts[1] : text;
-        // Flattened: LlmDecisionEngine renders passages as a bullet list
-        return body.replace('\n', ' ').replaceAll(" +", " ").strip();
-    }
-
-    private static String metadata(Document chunk, String key) {
-        Object value = chunk.getMetadata().get(key);
-        return value instanceof String text ? text : "";
+        return "[%s] %s - %s: %s".formatted(RuleChunks.chunkId(chunk), RuleChunks.title(chunk),
+                RuleChunks.section(chunk), RuleChunks.body(chunk));
     }
 }

@@ -6,7 +6,6 @@ import org.springframework.web.client.RestClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// A server accepting everyone would leave McpToolDiscoveryIT green: this refuses the anonymous
 class McpSharedSecretIT {
 
     private static final String MCP_URL = "http://localhost:8081/mcp";

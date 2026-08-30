@@ -1,4 +1,4 @@
-package com.bino.dra.adapter.out.llm;
+package com.bino.dra.adapter.out.support;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import java.time.Clock;
 
 @Configuration
-public class LlmConfig {
+public class TimeConfig {
 
     @Bean
     public Clock clock() {

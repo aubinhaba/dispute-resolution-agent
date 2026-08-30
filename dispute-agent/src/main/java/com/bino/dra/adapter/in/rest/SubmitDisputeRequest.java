@@ -18,8 +18,6 @@ public record SubmitDisputeRequest(
         Instant representmentDueBy,
         String issuerClaim
 ) {
-
-    // Fails with IllegalArgumentException, never NPE: that is the difference between 400 and 500
     public Dispute toDomain() {
         return new Dispute(
                 required(disputeId, "disputeId"),

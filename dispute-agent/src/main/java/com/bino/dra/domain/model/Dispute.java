@@ -21,4 +21,9 @@ public record Dispute(
         Objects.requireNonNull(reasonCode, "reasonCode required");
         Objects.requireNonNull(disputedAmount, "disputedAmount required");
     }
+
+    public Dispute withIssuerClaim(String newIssuerClaim) {
+        return new Dispute(disputeId, transactionId, merchantId, network, reasonCode,
+                disputedAmount, raisedAt, representmentDueBy, newIssuerClaim);
+    }
 }

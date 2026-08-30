@@ -14,13 +14,11 @@ public final class RuleQuery {
 
     public static Query of(String reasonCode, String network) {
         return Query.builder()
-                // Terse by design: naming section headings retrieves section headings
                 .text("%s reason code %s chargeback".formatted(network, reasonCode))
                 .context(Map.of(CTX_REASON_CODE, reasonCode, CTX_NETWORK, network))
                 .build();
     }
 
-    // Empty, never thrown: a reranker without context degrades, a crash loses every passage
     static String reasonCodeOf(Query query) {
         return read(query, CTX_REASON_CODE);
     }

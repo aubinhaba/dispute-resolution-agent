@@ -20,11 +20,9 @@ public class RuleVectorStoreConfig {
     private static final Logger log = LoggerFactory.getLogger(RuleVectorStoreConfig.class);
 
     @Bean
-    // No matchIfMissing: an absent property must fail startup, not elect an implicit winner
     @ConditionalOnProperty(name = "dra.rag.store", havingValue = "simple")
     public VectorStore ruleVectorStore(EmbeddingModel embeddingModel,
-                                       @Value("classpath:rules/*.md") Resource[] ruleSheets) {
-        // Fails fast on a missing corpus: a compliance agent without rules is wrong, not degraded
+                                       @Value(RuleCorpusLoader.CORPUS_LOCATION) Resource[] ruleSheets) {
         List<Document> chunks = RuleCorpusLoader.load(ruleSheets);
 
         SimpleVectorStore store = SimpleVectorStore.builder(embeddingModel).build();

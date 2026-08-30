@@ -26,8 +26,7 @@ public class PgVectorRuleStoreConfig {
     public RuleIndex ruleIndex(VectorStore store,
                                JdbcTemplate jdbc,
                                @Value("${spring.ai.vectorstore.pgvector.table-name}") String tableName,
-                               @Value("classpath:rules/*.md") Resource[] ruleSheets) {
-        // Truncate and rebuild each start: an index derived every time cannot drift from the corpus
+                               @Value(RuleCorpusLoader.CORPUS_LOCATION) Resource[] ruleSheets) {
         jdbc.execute("TRUNCATE TABLE " + tableName);
 
         List<Document> chunks = RuleCorpusLoader.load(ruleSheets);

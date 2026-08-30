@@ -12,10 +12,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// Not one assertion moved when the transport went from STDIO to Streamable HTTP (see ADR-0016)
 @NoDatabase
 @SpringBootTest(properties = {
-        // The auto-configured ChatModel demands a key at startup; this test never calls it
         "spring.ai.anthropic.api-key=not-used-by-this-test"
 })
 class McpToolDiscoveryIT {

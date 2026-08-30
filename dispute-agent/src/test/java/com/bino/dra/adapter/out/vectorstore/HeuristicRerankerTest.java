@@ -34,7 +34,6 @@ class HeuristicRerankerTest {
         List<Document> reranked = new HeuristicReranker(2)
                 .process(VISA_10_4_QUERY, List.of(excellentDistractor, mediocreGoverning));
 
-        // Structural guarantee: no future tuning of the constants can reintroduce this bug
         assertThat(reranked).extracting(Document::getId)
                 .containsExactly("visa-10.4#scope", "visa-13.3#scope");
     }
@@ -75,7 +74,6 @@ class HeuristicRerankerTest {
 
         List<Document> reranked = new HeuristicReranker(5).process(VISA_10_4_QUERY, candidates);
 
-        // Three sections then the cross-cutting rule: REDUNDANCY_PENALTY is derived from this
         assertThat(reranked).extracting(Document::getId)
                 .containsExactly("visa-10.4#a", "visa-10.4#b", "visa-10.4#c",
                         "shared-3ds#principle", "visa-10.4#d");

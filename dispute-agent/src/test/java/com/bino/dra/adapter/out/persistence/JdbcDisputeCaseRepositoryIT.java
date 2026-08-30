@@ -22,7 +22,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DataJdbcTest
-// Replace.NONE: otherwise Boot swaps in an embedded database and the test stops testing Postgres
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ImportAutoConfiguration(FlywayAutoConfiguration.class)
 @Import({PostgresTestcontainer.class, JdbcDisputeCaseRepository.class})
@@ -57,7 +56,6 @@ class JdbcDisputeCaseRepositoryIT extends DisputeCaseRepositoryContractTest {
                 .hasMessageContaining("append-only");
     }
 
-    // Two tests, not one: Postgres aborts the transaction on the first refusal, hiding the second
     @Test
     void the_database_refuses_to_delete_a_history_row() {
         repository.claim(DisputeCase.pending("D-FROZEN-D", SUBMITTED_AT));
@@ -74,7 +72,6 @@ class JdbcDisputeCaseRepositoryIT extends DisputeCaseRepositoryContractTest {
 
     @TestConfiguration(proxyBeanMethods = false)
     static class TestClock {
-
         @Bean
         Clock clock() {
             return Clock.systemUTC();

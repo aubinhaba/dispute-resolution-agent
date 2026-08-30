@@ -20,7 +20,7 @@ exact-match metrics. Every run writes `target/eval-report.json`.
 The split is the point: **what code guarantees holds at 100%, what rests on the model's judgement
 holds at 85–90%.**
 
-Two runs of the same code give 0.85 and 0.90, so the assertions are floors, never equalities. A gate
+Two runs of the same code give 0.85 and 0.90, so the assertions are floors rather than equalities. A gate
 asserting the observed value would be red half the time and would end up disabled — a disabled gate
 measures nothing.
 

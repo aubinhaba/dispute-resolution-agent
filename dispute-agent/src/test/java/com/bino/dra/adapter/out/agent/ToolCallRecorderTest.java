@@ -51,7 +51,6 @@ class ToolCallRecorderTest {
     void unwraps_json_nested_inside_the_mcp_content_envelope() {
         ToolCallRecorder recorder = new ToolCallRecorder(5);
 
-        // Real shape of an MCP response: content blocks whose payload is escaped JSON
         String mcpResponse = """
                 [{"type":"text","text":"[{\\"transactionId\\":\\"TXN-H-M4XA1-1\\"},{\\"transactionId\\":\\"TXN-H-M4XA1-2\\"}]"}]""";
 

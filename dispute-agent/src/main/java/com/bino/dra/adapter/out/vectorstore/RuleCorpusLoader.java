@@ -1,10 +1,9 @@
 package com.bino.dra.adapter.out.vectorstore;
 
+import com.bino.dra.adapter.out.support.Resources;
 import org.springframework.ai.document.Document;
 import org.springframework.core.io.Resource;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -19,16 +18,16 @@ public final class RuleCorpusLoader {
     public static final String META_NETWORK = "network";
     public static final String META_REASON_CODE = "reasonCode";
 
-    // Codes a cross-cutting sheet is DECISIVE for, not merely relevant to (see ADR-0010)
     public static final String META_APPLIES_TO = "appliesTo";
 
     public static final String META_TITLE = "title";
     public static final String META_SECTION = "section";
 
-    // The audit id lives in metadata, not in getId(): PgVectorStore requires UUIDs (see ADR-0005)
     public static final String META_CHUNK_ID = "chunkId";
 
     public static final String ANY = "ANY";
+
+    public static final String CORPUS_LOCATION = "classpath:rules/*.md";
 
     private static final String FRONT_MATTER_DELIMITER = "---";
     private static final String SECTION_PREFIX = "## ";
@@ -43,19 +42,15 @@ public final class RuleCorpusLoader {
         }
         Map<String, Document> byId = new LinkedHashMap<>();
         for (Resource sheet : sheets) {
-            for (Document chunk : parse(readUtf8(sheet), sheet.getFilename())) {
-                Document previous = byId.putIfAbsent(chunkId(chunk), chunk);
-                if (previous != null) {
-                    throw new IllegalStateException("Duplicate chunk id in corpus: " + chunkId(chunk));
+            String markdown = Resources.text(sheet, "rule sheet");
+            for (Document chunk : parse(markdown, sheet.getFilename())) {
+                String id = RuleChunks.chunkId(chunk);
+                if (byId.putIfAbsent(id, chunk) != null) {
+                    throw new IllegalStateException("Duplicate chunk id in corpus: " + id);
                 }
             }
         }
         return List.copyOf(byId.values());
-    }
-
-    public static String chunkId(Document chunk) {
-        Object value = chunk.getMetadata().get(META_CHUNK_ID);
-        return value instanceof String text && !text.isBlank() ? text : chunk.getId();
     }
 
     private static String uuidOf(String chunkId) {
@@ -76,7 +71,6 @@ public final class RuleCorpusLoader {
         for (Section section : splitSections(parts[1])) {
             String chunkId = ruleId + "#" + slug(section.title());
             chunks.add(Document.builder()
-                    // Derived and not random: reindexing must not invalidate archived citations
                     .id(uuidOf(chunkId))
                     .text(enrich(network, reasonCode, title, section))
                     .metadata(Map.of(
@@ -95,12 +89,12 @@ public final class RuleCorpusLoader {
         return chunks;
     }
 
-    // The embedding model sees chunk text only, so each chunk carries its own provenance
     static String enrich(String network, String reasonCode, String title, Section section) {
         String provenance = ANY.equals(reasonCode)
                 ? network + " - " + title
                 : network + " reason code " + reasonCode + " - " + title;
-        return provenance + "\n" + section.title() + "\n\n" + section.body();
+        return provenance + "\n" + section.title()
+                + RuleChunks.BODY_SEPARATOR + section.body();
     }
 
     record Section(String title, String body) {
@@ -120,7 +114,7 @@ public final class RuleCorpusLoader {
                 normalised.substring(end + 1 + FRONT_MATTER_DELIMITER.length())};
     }
 
-    // Hand-parsed rather than SnakeYAML: a real parser would coerce "10.4" to a Double
+    // Hand-parsed: SnakeYAML would coerce a reason code like "10.4" to a Double
     private static Map<String, String> readFrontMatter(String header, String sourceName) {
         Map<String, String> values = new LinkedHashMap<>();
         for (String line : header.split("\n")) {
@@ -206,13 +200,5 @@ public final class RuleCorpusLoader {
                     "Missing or empty front matter key: '" + key + "' in " + sourceName);
         }
         return value;
-    }
-
-    private static String readUtf8(Resource resource) {
-        try {
-            return resource.getContentAsString(StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Unreadable rule sheet: " + resource.getFilename(), e);
-        }
     }
 }

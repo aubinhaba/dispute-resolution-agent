@@ -18,7 +18,6 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// Baseline of vector search alone; suffixed IT because it is slow, not because it needs a service
 class RuleRetrievalIT {
 
     private static final int CANDIDATES = 50;
@@ -77,7 +76,6 @@ class RuleRetrievalIT {
             report.append("%-16s %-16s %s\n".formatted(query, expectedRuleId,
                     rank < 0 ? "MISSING" : "#" + (rank + 1)));
 
-            // Recall is unrecoverable downstream: no reranker surfaces a document never retrieved
             assertThat(rank)
                     .as("sheet %s missing from the %d candidates for %s", expectedRuleId, CANDIDATES, query)
                     .isGreaterThanOrEqualTo(0);
@@ -94,7 +92,6 @@ class RuleRetrievalIT {
             assertThat(rank)
                     .as("3-D Secure missing from the candidates for %s", query)
                     .isGreaterThanOrEqualTo(0);
-            // A reason code is an opaque token: no embedding model knows 10.4 means fraud
             assertThat(rank)
                     .as("3-D Secure already reaches the top-%d for %s: reranking would have "
                             + "nothing left to fix", TOP_K, query)

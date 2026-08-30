@@ -1,5 +1,6 @@
 package com.bino.dra.adapter.out.llm;
 
+import com.bino.dra.adapter.out.support.Text;
 import com.bino.dra.domain.model.Decision;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -15,7 +16,6 @@ import java.util.stream.Collectors;
 @Component
 public class DraftValidator {
 
-    // Shape produced by the RAG: "[ruleId#section] Title - Section: body"
     private static final Pattern CHUNK_ID_PREFIX = Pattern.compile("^\\[([^\\]]+)]");
     private static final int PREVIEW_MAX = 60;
 
@@ -43,7 +43,6 @@ public class DraftValidator {
             violations.add("unknown citedReasonCode: " + draft.citedReasonCode());
         }
 
-        // ESCALATE is exempt: an escalation raised for lack of material cannot produce any
         if (draft.decision() != Decision.ESCALATE) {
             if (isEmpty(draft.evidenceRefs())) {
                 violations.add("empty evidenceRefs (a decision without evidence is invalid)");
@@ -89,7 +88,6 @@ public class DraftValidator {
     }
 
     private static String preview(String citation) {
-        String flat = citation == null ? "(null)" : citation.strip();
-        return flat.length() <= PREVIEW_MAX ? flat : flat.substring(0, PREVIEW_MAX) + "...";
+        return Text.truncate(citation == null ? "(null)" : citation.strip(), PREVIEW_MAX);
     }
 }

@@ -12,7 +12,6 @@ public record DisputeCaseView(
         String failureReason,
         Instant submittedAt,
         Instant completedAt) {
-
     public static DisputeCaseView from(DisputeCase disputeCase) {
         return new DisputeCaseView(
                 Provenanced.untrusted(disputeCase.disputeId()),

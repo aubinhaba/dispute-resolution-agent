@@ -29,7 +29,7 @@ public class SharedSecretAuthFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         String provided = request.getHeader(HEADER);
-        // Constant time: String.equals stops at the first differing byte, so it leaks the prefix length
+        // Constant time: String.equals leaks the length of the matching prefix
         if (provided != null && MessageDigest.isEqual(provided.getBytes(StandardCharsets.UTF_8), expectedSecret)) {
             SecurityContextHolder.getContext().setAuthentication(
                     new PreAuthenticatedAuthenticationToken(

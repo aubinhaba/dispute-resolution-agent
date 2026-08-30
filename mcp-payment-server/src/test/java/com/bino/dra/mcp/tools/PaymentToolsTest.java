@@ -32,7 +32,6 @@ class PaymentToolsTest {
     @Nested
     @DisplayName("Input validation — the model can supply anything")
     class InputValidation {
-
         @Test
         @DisplayName("hallucinated transaction id -> error with a corrective message (not an empty 200)")
         void hallucinatedTransactionId_isRejectedWithGuidance() {
@@ -71,7 +70,6 @@ class PaymentToolsTest {
     @Nested
     @DisplayName("Context budget — history bounds")
     class ContextBudget {
-
         @Test
         @DisplayName("missing optional params -> defaults (90 days / 20 entries)")
         void missingOptionalParams_useDefaults() {
@@ -100,7 +98,6 @@ class PaymentToolsTest {
     @Nested
     @DisplayName("Responses designed for a model reader")
     class ModelFacingOutputs {
-
         @Test
         @DisplayName("no fulfillment (digital goods) -> found=false + explanatory note, not an error")
         void digitalGoods_returnAnExplainedAbsence() {
@@ -133,7 +130,6 @@ class PaymentToolsTest {
     @Nested
     @DisplayName("PCI invariant: never a PAN in a tool output")
     class PciInvariant {
-
         @Test
         @DisplayName("no PAN-like digit sequence in the JSON of the 4 tools")
         void noPanLikeDigitSequence_inAnyToolOutput() throws Exception {

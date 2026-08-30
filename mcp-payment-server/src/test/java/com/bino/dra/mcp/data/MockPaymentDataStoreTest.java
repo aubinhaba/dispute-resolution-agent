@@ -28,7 +28,6 @@ class MockPaymentDataStoreTest {
     @Nested
     @DisplayName("Consistency with the eval-case specs")
     class EvalCaseConsistency {
-
         @Test
         @DisplayName("EVAL-001 (-> ACCEPT): failed 3DS, AVS mismatch, inconsistent geography, 45.00 EUR")
         void eval001_hasWeakSignals() {
@@ -121,7 +120,6 @@ class MockPaymentDataStoreTest {
     @Nested
     @DisplayName("Customer history semantics")
     class CustomerHistory {
-
         @Test
         @DisplayName("lookbackDays filter: a 50-day window excludes older purchases")
         void lookbackWindow_filtersOldTransactions() {
@@ -150,7 +148,6 @@ class MockPaymentDataStoreTest {
     @Nested
     @DisplayName("'Unknown' vs 'empty' nuance (anti-hallucination)")
     class UnknownVersusEmpty {
-
         @Test
         @DisplayName("unknown transaction -> Optional.empty (the tool turns it into an MCP error)")
         void unknownTransaction_isEmpty() {

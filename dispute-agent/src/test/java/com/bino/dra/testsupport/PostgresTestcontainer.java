@@ -6,12 +6,12 @@ import org.springframework.context.annotation.Bean;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
-// A real Postgres, not H2: the trigger, ON CONFLICT and HNSW exist only there
 @TestConfiguration(proxyBeanMethods = false)
 public class PostgresTestcontainer {
 
     @Bean
     @ServiceConnection
+    // A real Postgres, not H2: the append-only trigger and the HNSW index exist only there
     PostgreSQLContainer postgres() {
         return new PostgreSQLContainer(DockerImageName.parse("pgvector/pgvector:pg17")
                 .asCompatibleSubstituteFor("postgres"));

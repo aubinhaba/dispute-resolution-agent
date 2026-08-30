@@ -19,7 +19,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// The RetrievalAugmentationAdvisor path the decision flow deliberately does NOT take (see ADR-0010)
 @NoDatabase
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")
@@ -43,7 +42,6 @@ class RagAdvisorDemoIT {
 
     @Test
     void the_advisor_performs_a_full_rag_in_one_declaration() {
-        // Our blocks plug in unchanged: HeuristicReranker implements DocumentPostProcessor
         var advisor = RetrievalAugmentationAdvisor.builder()
                 .documentRetriever(VectorStoreDocumentRetriever.builder()
                         .vectorStore(ruleVectorStore)
@@ -62,7 +60,6 @@ class RagAdvisorDemoIT {
 
         assertThat(response).isNotNull();
 
-        // Recoverable documents make attestation possible, but nothing ties a sentence to one
         Object usedDocuments = response.getMetadata().get(RetrievalAugmentationAdvisor.DOCUMENT_CONTEXT);
         assertThat(usedDocuments).isInstanceOf(List.class);
 

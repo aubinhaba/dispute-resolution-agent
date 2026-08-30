@@ -14,7 +14,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// One run costs ~90-120 model calls: this is launched knowingly, never on every push
 @NoDatabase
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")
@@ -52,7 +51,6 @@ class EvalHarnessIT {
                 .as("rulePassageAttestationRate - the output guardrail must hold over the whole set")
                 .isEqualTo(1.0);
 
-        // Floors, not targets: two runs of the same code give 0.85 and 0.90, so an equality would flake
         assertThat(report.decisionAccuracy())
                 .as("decisionAccuracy - failures: %s", report.failures())
                 .isGreaterThanOrEqualTo(0.75);

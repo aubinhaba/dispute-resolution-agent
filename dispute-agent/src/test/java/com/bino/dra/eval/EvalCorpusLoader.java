@@ -2,7 +2,6 @@ package com.bino.dra.eval;
 
 import com.bino.dra.domain.model.Decision;
 import com.bino.dra.domain.model.Dispute;
-import com.bino.dra.domain.model.EvalCase;
 import com.bino.dra.domain.model.Money;
 import com.bino.dra.domain.model.Network;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -57,7 +56,6 @@ final class EvalCorpusLoader {
         return List.copyOf(scenarios);
     }
 
-    // Corpus dates are relative and resolved here: absolute ones silently expire against the deadline rule
     private static Dispute dispute(JsonNode node, String disputeId) {
         Instant now = Instant.now();
         long raisedDaysAgo = node.hasNonNull("raisedAtDaysAgo") ? node.get("raisedAtDaysAgo").asLong() : 10L;

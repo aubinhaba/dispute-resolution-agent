@@ -14,7 +14,6 @@ import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// Asserts invariants of the investigation, never an exact model answer: the latter is flaky by nature
 @NoDatabase
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")

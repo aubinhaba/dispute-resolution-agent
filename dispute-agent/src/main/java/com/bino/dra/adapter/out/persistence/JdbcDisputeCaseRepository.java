@@ -13,12 +13,14 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 
-// Append-only is enforced by a trigger, not by this class: a convention cannot go red (ADR-0017)
 @Repository
 @ConditionalOnProperty(name = "dra.persistence", havingValue = "jdbc")
 public class JdbcDisputeCaseRepository implements DisputeCaseRepository {
 
     private static final String[] NONE = new String[0];
+
+    // A null seq forces an INSERT; a non-null one attempts the UPDATE the trigger refuses
+    private static final Long NEW_EVENT = null;
 
     private final DisputeCaseEventCrud events;
     private final DisputeCaseClaimCrud claims;
@@ -54,23 +56,28 @@ public class JdbcDisputeCaseRepository implements DisputeCaseRepository {
     }
 
     private DisputeCaseEventRow toRow(DisputeCase c) {
-        DisputeDecision d = c.decision();
+        return c.decision() == null ? undecidedRow(c) : decidedRow(c, c.decision());
+    }
+
+    private DisputeCaseEventRow undecidedRow(DisputeCase c) {
         return new DisputeCaseEventRow(
-                null,  // null seq forces an INSERT; a non-null one would attempt the refused UPDATE
-                c.disputeId(),
-                c.status().name(),
-                d == null ? null : d.decision().name(),
-                d == null ? null : d.confidence(),
-                d == null ? null : d.rationale(),
-                d == null ? null : d.citedReasonCode(),
-                d == null ? NONE : d.citedRulePassages().toArray(String[]::new),
-                d == null ? NONE : d.evidenceRefs().toArray(String[]::new),
-                d == null ? null : d.agentVersion(),
-                d == null ? null : d.decidedAt(),
-                c.failureReason(),
-                c.submittedAt(),
-                c.completedAt(),
-                clock.instant());
+                NEW_EVENT, c.disputeId(), c.status().name(),
+                null, null, null, null, NONE, NONE, null, null,
+                c.failureReason(), c.submittedAt(), c.completedAt(), clock.instant());
+    }
+
+    private DisputeCaseEventRow decidedRow(DisputeCase c, DisputeDecision d) {
+        return new DisputeCaseEventRow(
+                NEW_EVENT, c.disputeId(), c.status().name(),
+                d.decision().name(),
+                d.confidence(),
+                d.rationale(),
+                d.citedReasonCode(),
+                d.citedRulePassages().toArray(String[]::new),
+                d.evidenceRefs().toArray(String[]::new),
+                d.agentVersion(),
+                d.decidedAt(),
+                c.failureReason(), c.submittedAt(), c.completedAt(), clock.instant());
     }
 
     private static DisputeCase toDomain(DisputeCaseEventRow r) {

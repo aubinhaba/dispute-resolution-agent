@@ -38,7 +38,6 @@ class AuditPageIT {
         String page = RestClient.create("http://localhost:" + port)
                 .get().uri("/audit.html").retrieve().body(String.class);
 
-        // Targets the CALLS, not the word: matching the bare word went red on the comment forbidding it
         assertThat(page).doesNotContain(
                 "innerHTML=", "innerHTML =", "outerHTML=", "outerHTML =",
                 "insertAdjacentHTML(", "document.write(");

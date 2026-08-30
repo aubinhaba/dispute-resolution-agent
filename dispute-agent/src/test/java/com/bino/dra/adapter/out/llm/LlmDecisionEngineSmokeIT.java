@@ -42,7 +42,6 @@ class LlmDecisionEngineSmokeIT {
                 "evidence-llm@v1.0.0",
                 Instant.now());
 
-        // Hand-written passages without the RuleRetriever prefix can never be attested (ADR-0014)
         List<String> rules = List.of(
                 "[visa-10.4#liability-shift] Fraud - Card-Absent Environment - Liability shift: "
                         + "if 3-D Secure authentication succeeded, liability shifts to the issuer, "

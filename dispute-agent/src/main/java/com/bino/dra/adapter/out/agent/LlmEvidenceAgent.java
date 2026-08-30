@@ -1,21 +1,20 @@
 package com.bino.dra.adapter.out.agent;
 
+import com.bino.dra.adapter.out.support.Config;
+import com.bino.dra.adapter.out.support.Resources;
 import com.bino.dra.application.port.out.EvidenceGatherer;
 import com.bino.dra.domain.model.Dispute;
 import com.bino.dra.domain.model.EvidenceBundle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
-import tools.jackson.core.JacksonException;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
@@ -43,9 +42,9 @@ public class LlmEvidenceAgent implements EvidenceGatherer {
         this.chatClient = chatClientBuilder.build();
         this.mcpToolCallbacks = mcpToolCallbacks;
         this.clock = clock;
-        this.maxToolCalls = maxToolCalls;
+        this.maxToolCalls = Config.requireAtLeastOne(maxToolCalls, "dra.agent.max-tool-calls");
         this.agentVersion = agentVersion;
-        this.systemPrompt = readResource(gatherPrompt);
+        this.systemPrompt = Resources.text(gatherPrompt, "evidence gathering prompt");
     }
 
     @Override
@@ -67,11 +66,8 @@ public class LlmEvidenceAgent implements EvidenceGatherer {
         }
     }
 
-    // Prose instead of JSON: keep what the recorder attested, lose what the model narrated.
-    // JacksonException and not RuntimeException, or a wider catch would hide real bugs
     private EvidenceBundle bundleWithoutNarrative(Dispute dispute, ToolCallRecorder recorder,
                                                   JacksonException cause) {
-        // The cause is logged, never carried into the bundle: it can quote an input field back
         log.warn("Unparsable evidence-agent response for {}: bundle reduced to attested facts",
                 dispute.disputeId(), cause);
         return compose(dispute, null, recorder, agentVersion + "+unparsed", clock.instant());
@@ -88,7 +84,6 @@ public class LlmEvidenceAgent implements EvidenceGatherer {
         return new EvidenceBundle(
                 dispute.disputeId(),
                 dispute.transactionId(),
-                // Normalised rather than trusted: a structured-output schema is not a hard guarantee
                 draft == null || draft.summary() == null ? "" : draft.summary(),
                 draft == null || draft.findings() == null ? List.of() : draft.findings(),
                 recorder.evidenceRefs(),
@@ -123,13 +118,5 @@ public class LlmEvidenceAgent implements EvidenceGatherer {
                 dispute.disputedAmount().minorUnits(),
                 dispute.disputedAmount().currency(),
                 dispute.issuerClaim() == null ? "(none)" : dispute.issuerClaim());
-    }
-
-    private static String readResource(Resource resource) {
-        try {
-            return resource.getContentAsString(StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new UncheckedIOException("Cannot load evidence gathering prompt", e);
-        }
     }
 }

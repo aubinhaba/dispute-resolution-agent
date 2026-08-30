@@ -40,8 +40,7 @@ class RuleCorpusLoaderTest {
     void audit_id_is_readable_and_derived_from_the_section_title() {
         List<Document> chunks = RuleCorpusLoader.parse(MINIMAL_SHEET, "visa-13-1.md");
 
-        // This id IS the citation that ends up in DisputeDecision.citedRulePassages
-        assertThat(chunks).extracting(RuleCorpusLoader::chunkId)
+        assertThat(chunks).extracting(RuleChunks::chunkId)
                 .containsExactly("visa-13.1#scope", "visa-13.1#time-limits");
     }
 
@@ -50,7 +49,6 @@ class RuleCorpusLoaderTest {
         List<Document> first = RuleCorpusLoader.parse(MINIMAL_SHEET, "visa-13-1.md");
         List<Document> second = RuleCorpusLoader.parse(MINIMAL_SHEET, "visa-13-1.md");
 
-        // Deterministic, or reindexing at startup would orphan every archived citation (ADR-0005)
         assertThat(first).allSatisfy(chunk ->
                 assertThatCode(() -> UUID.fromString(chunk.getId())).doesNotThrowAnyException());
         assertThat(first).extracting(Document::getId)
@@ -61,7 +59,6 @@ class RuleCorpusLoaderTest {
     void indexed_text_carries_the_network_the_reason_code_and_the_sheet_title() {
         List<Document> chunks = RuleCorpusLoader.parse(MINIMAL_SHEET, "visa-13-1.md");
 
-        // The body contains neither "Visa" nor "13.1": without enrichment it is unretrievable
         assertThat(chunks.get(1).getText())
                 .contains("VISA reason code 13.1")
                 .contains("Merchandise or Services Not Received")

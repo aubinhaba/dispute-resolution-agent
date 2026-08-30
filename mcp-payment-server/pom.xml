@@ -38,7 +38,7 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- Serializes tool outputs to JSON for the PCI-invariant test. -->
+        <!-- Test scope only: serializes tool outputs to JSON for the PCI-invariant test -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>

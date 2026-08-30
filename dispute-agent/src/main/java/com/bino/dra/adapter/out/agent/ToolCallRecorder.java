@@ -1,5 +1,6 @@
 package com.bino.dra.adapter.out.agent;
 
+import com.bino.dra.adapter.out.support.Config;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -8,7 +9,6 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-// One instance per investigation, never a shared bean: a singleton would merge concurrent trails
 final class ToolCallRecorder {
 
     static final String BUDGET_EXHAUSTED_MESSAGE =
@@ -26,13 +26,9 @@ final class ToolCallRecorder {
     private boolean budgetExhausted;
 
     ToolCallRecorder(int maxToolCalls) {
-        if (maxToolCalls < 1) {
-            throw new IllegalArgumentException("maxToolCalls must be >= 1, got " + maxToolCalls);
-        }
-        this.maxToolCalls = maxToolCalls;
+        this.maxToolCalls = Config.requireAtLeastOne(maxToolCalls, "maxToolCalls");
     }
 
-    // Spring AI's tool-calling loop has no turn limit, so the cap lives here (see ADR-0002)
     boolean tryConsume() {
         if (consumed >= maxToolCalls) {
             budgetExhausted = true;
@@ -79,7 +75,6 @@ final class ToolCallRecorder {
         try {
             walk(JSON.readTree(json));
         } catch (Exception ignored) {
-            // Non-JSON tool output: a poorer trail, never a failed investigation
         }
     }
 
@@ -98,7 +93,6 @@ final class ToolCallRecorder {
         } else if (node.isArray()) {
             node.forEach(this::walk);
         } else if (node.isTextual()) {
-            // An MCP payload is escaped JSON inside content blocks: the envelope alone holds no id
             unwrapEmbeddedJson(node.asText());
         }
     }

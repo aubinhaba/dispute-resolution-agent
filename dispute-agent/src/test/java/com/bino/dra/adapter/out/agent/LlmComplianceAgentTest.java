@@ -15,7 +15,6 @@ class LlmComplianceAgentTest {
     void a_cited_passage_carries_its_corpus_identifier_as_a_prefix() {
         String cited = LlmComplianceAgent.cite(realisticChunk());
 
-        // This prefix is the audit trail: a decision may only cite passages actually supplied
         assertThat(cited).startsWith("[visa-10.4#liability-shift]");
         assertThat(cited).contains("Fraud - Card-Absent Environment");
         assertThat(cited).contains("Liability shift");

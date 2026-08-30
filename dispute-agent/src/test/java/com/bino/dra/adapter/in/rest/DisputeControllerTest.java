@@ -141,7 +141,6 @@ class DisputeControllerTest {
         verify(submissions, never()).find(eq("D-1"));
     }
 
-    // The key, not addFilters = false: disabling filters would pass by removing what was added
     private static MockHttpServletRequestBuilder withKey(MockHttpServletRequestBuilder request) {
         return request.header("X-API-Key", System.getProperty("dra.security.api-key", ""));
     }

@@ -12,7 +12,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PromptSafetyGuardTest {
 
-    // Published scheme test numbers: Luhn-valid, tied to no cardholder
     private static final String TEST_PAN = "4111111111111111";
 
     private final PromptSafetyGuard guard = new PromptSafetyGuard();

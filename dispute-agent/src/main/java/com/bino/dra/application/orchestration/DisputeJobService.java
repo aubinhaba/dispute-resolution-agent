@@ -41,7 +41,6 @@ public class DisputeJobService implements DisputeJobRunner {
         }
     }
 
-    // The exception type, never its message: a message can echo an input field
     private static String readableCause(RuntimeException failure) {
         return failure.getClass().getSimpleName();
     }

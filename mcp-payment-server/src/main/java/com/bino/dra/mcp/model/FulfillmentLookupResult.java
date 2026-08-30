@@ -5,7 +5,6 @@ public record FulfillmentLookupResult(
         FulfillmentRecordDto record,
         String note
 ) {
-
     public static FulfillmentLookupResult of(FulfillmentRecordDto record) {
         return new FulfillmentLookupResult(true, record,
                 "Fulfillment record found for this transaction.");

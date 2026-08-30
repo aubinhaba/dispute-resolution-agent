@@ -26,7 +26,6 @@ class OrchestratorServiceTest {
     private static final long MIN_DAYS = 3L;
     private static final Instant NOW = Instant.parse("2026-08-07T09:00:00Z");
     private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
-    // Wide horizon so the deadline rule interferes with no other test
     private static final Instant COMFORTABLE_DUE_DATE = NOW.plus(Duration.ofDays(30));
 
     private static final class StubGatherer implements EvidenceGatherer {

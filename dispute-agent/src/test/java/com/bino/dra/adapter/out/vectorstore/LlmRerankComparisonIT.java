@@ -18,7 +18,6 @@ import java.nio.file.Path;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-// Third arm: the LLM reranker matches the free deterministic one here, one model call per dispute
 @NoDatabase
 @SpringBootTest
 @EnabledIfEnvironmentVariable(named = "ANTHROPIC_API_KEY", matches = ".+")
@@ -38,7 +37,6 @@ class LlmRerankComparisonIT {
 
     @BeforeAll
     static void requireMcpServerJar() {
-        // Every @SpringBootTest here needs the fat jar: the MCP client is a mandatory bean
         assertThat(Files.exists(MCP_SERVER_JAR))
                 .as("MCP server fat jar missing: run `mvn -DskipTests package` before the ITs")
                 .isTrue();
@@ -61,7 +59,6 @@ class LlmRerankComparisonIT {
         System.out.printf("%n>>> precision@5 - control %.2f | heuristic %.2f | LLM %.2f%n",
                 control, heuristic, byLlm);
 
-        // Asserting the LLM beats the heuristic would fail every other run
         assertThat(byLlm)
                 .as("LLM reranking scores below no reranking at all: check the rerank prompt and "
                         + "the identifier filtering in LlmReranker")
