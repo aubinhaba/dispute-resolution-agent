@@ -23,7 +23,8 @@ public class RerankerConfig {
             ChatClient.Builder chatClientBuilder,
             @Value("${dra.rag.reranker}") String strategy,
             @Value("${dra.rag.top-k}") int topK,
-            @Value("classpath:prompts/compliance/rerank.v1.0.0.md") Resource rerankPrompt) {
+            // Path derived from the pin, so the version is written once (see ADR-0003)
+            @Value("classpath:prompts/compliance/rerank.${dra.prompts.rerank}.md") Resource rerankPrompt) {
         log.info("Reranking strategy: {} (top-k = {})", strategy, topK);
 
         return switch (strategy) {

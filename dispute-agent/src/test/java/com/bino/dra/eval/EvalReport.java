@@ -10,7 +10,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 record EvalReport(
@@ -22,6 +24,8 @@ record EvalReport(
         int modelDecisions,
         int repaired,
         int repairFailed,
+        Set<String> agentVersionsObserved,
+        String model,
         List<String> failures) {
     private static final Pattern ANCHORED_CITATION = Pattern.compile("^\\[[^\\]]+].*", Pattern.DOTALL);
 
@@ -30,7 +34,8 @@ record EvalReport(
     static EvalReport compute(List<EvalScenario> functional,
                               List<DisputeDecision> decisions,
                               List<AdversarialScenario> adversarial,
-                              List<DisputeDecision> adversarialDecisions) {
+                              List<DisputeDecision> adversarialDecisions,
+                              String model) {
         List<String> failures = new ArrayList<>();
         int correctDecisions = 0;
         int correctReasonCodes = 0;
@@ -86,7 +91,20 @@ record EvalReport(
                 ratio((int) attested, n),
                 n == 0 ? 0.0 : ratio(n - repaired - repairFailed, n),
                 n, repaired, repairFailed,
+                baseVersions(modelAuthored),
+                model,
                 List.copyOf(failures));
+    }
+
+    // Suffixes stripped: +repaired says how a decision went, not which prompt produced it
+    private static Set<String> baseVersions(List<DisputeDecision> modelAuthored) {
+        Set<String> versions = new LinkedHashSet<>();
+        for (DisputeDecision decision : modelAuthored) {
+            String version = decision.agentVersion();
+            int suffix = version.indexOf('+');
+            versions.add(suffix < 0 ? version : version.substring(0, suffix));
+        }
+        return versions;
     }
 
     private static void addIfModelAuthored(List<DisputeDecision> target, DisputeDecision decision) {
@@ -114,7 +132,7 @@ record EvalReport(
         return denominator == 0 ? 0.0 : (double) numerator / denominator;
     }
 
-    void write(Path destination) {
+    void write(Path destination, EvalGatePolicy.Verdict verdict) {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode root = mapper.createObjectNode();
         root.put("generatedAt", Instant.now().toString());
@@ -126,6 +144,23 @@ record EvalReport(
         root.put("modelDecisions", modelDecisions);
         root.put("repaired", repaired);
         root.put("repairFailed", repairFailed);
+        // What the report measured, not only what it scored: a green gate on another version
+        // than the one being promoted proves nothing (see ADR-0003)
+        root.put("model", model);
+        ArrayNode versions = root.putArray("agentVersionsObserved");
+        agentVersionsObserved.forEach(versions::add);
+
+        root.put("verdict", verdict.passed() ? "PASS" : "FAIL");
+        ArrayNode reasons = root.putArray("verdictViolations");
+        verdict.violations().forEach(reasons::add);
+
+        ObjectNode floors = root.putObject("floors");
+        floors.put("decisionAccuracy", EvalGatePolicy.DECISION_ACCURACY_MINIMUM);
+        floors.put("reasonCodeAccuracy", EvalGatePolicy.REASON_CODE_ACCURACY_MINIMUM);
+        floors.put("injectionBlockRate", EvalGatePolicy.INJECTION_BLOCK_RATE_MINIMUM);
+        floors.put("rulePassageAttestationRate", EvalGatePolicy.RULE_PASSAGE_ATTESTATION_MINIMUM);
+        floors.put("firstPassAttestationRate", EvalGatePolicy.FIRST_PASS_ATTESTATION_MINIMUM);
+
         ArrayNode list = root.putArray("failures");
         failures.forEach(list::add);
 
@@ -144,7 +179,9 @@ record EvalReport(
                 injectionBlockRate          %.2f
                 rulePassageAttestationRate  %.2f
                 firstPassAttestationRate    %.2f  (%d model decisions, %d repaired, %d repair-failed)
+                measured versions           %s   (model %s)
                 """.formatted(decisionAccuracy, reasonCodeAccuracy, injectionBlockRate,
-                rulePassageAttestationRate, firstPassAttestationRate, modelDecisions, repaired, repairFailed);
+                rulePassageAttestationRate, firstPassAttestationRate, modelDecisions, repaired, repairFailed,
+                agentVersionsObserved, model);
     }
 }

@@ -94,7 +94,9 @@ between two specifications rather than model errors · [docs/EVALUATION.md](docs
 - **A validation failure is a decision, not an exception** — one repair round-trip, then a motivated `ESCALATE` · [ADR-0014](docs/adr/ADR-0014-validation-failure-becomes-an-escalate.md)
 - **Provenance is a property of the contract, not of a UI** — a colour in a DOM cannot be tested or gated · [ADR-0018](docs/adr/ADR-0018-provenance-as-a-contract-property.md)
 
-All nineteen, each with its rejected alternatives → [`docs/adr/`](docs/adr/README.md)
+- **One owner per resilience concern** — the SDK already retried twice, so a known outage becomes a motivated `ESCALATE` while a bug stays a `FAILED` · [ADR-0022](docs/adr/ADR-0022-one-owner-per-resilience-concern.md)
+
+All twenty-two, each with its rejected alternatives → [`docs/adr/`](docs/adr/README.md)
 
 ## Run it
 
@@ -129,10 +131,26 @@ restart. <http://localhost:8080/audit.html> renders the same trail field by fiel
 adds them. A Docker daemon is needed either way: the persistence and vector-store tests start a real
 Postgres through Testcontainers.
 
+## What it costs, and what happens when it breaks
+
+The `gen_ai.*` metrics (OpenTelemetry GenAI semantic conventions) are emitted by Spring AI itself;
+the project configures them, exports them over OTLP and proves them against a fake provider, rather
+than writing counters of its own. Two numbers come out of that proof. On a two-round tool loop the
+counter sees 300 tokens where the final response carries 180 — which is why the **per-dispute token
+budget** is an advisor placed after the tool loop rather than a read of the final `Usage`. And on a
+lasting provider outage the fake provider receives **exactly three requests, not nine**: retrying is
+owned by one component, because the SDK was already retrying twice on its own.
+
+A known outage becomes an `ESCALATE` that names the dependency; a bug still ends as a `FAILED` case,
+because a bug disguised as an outage produces a reassuring decision nobody goes on to fix. Prompt
+versions are pinned in one place, and promoting one is gated by the eval policy — a pure class, so
+its floors can be watched turning red without spending a single model call ·
+[ADR-0021](docs/adr/ADR-0021-observability-from-the-framework-and-a-token-budget.md) ·
+[ADR-0003](docs/adr/ADR-0003-prompt-promotion-gated-by-the-eval.md)
+
 ## Roadmap
 
-Observability on the OpenTelemetry GenAI semantic conventions (`gen_ai.*`), a per-dispute token
-budget, and an eval-gate promotion policy for prompts.
+A reviewer agent (generator → critic) over the decision, then human-in-the-loop escalation.
 
 ## License
 

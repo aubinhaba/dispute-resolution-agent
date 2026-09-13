@@ -1,0 +1,6 @@
+# Single source for each prompt version: both the file path and the audit label derive from it.
+dra:
+  prompts:
+    decision: v1.2.0
+    evidence: v1.0.0
+    rerank: v1.0.0

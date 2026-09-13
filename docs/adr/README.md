@@ -1,6 +1,6 @@
 # Architecture decision records
 
-Nineteen decisions, each recorded with the alternatives that were rejected and why. The five that
+Twenty-two decisions, each recorded with the alternatives that were rejected and why. The five that
 carry the thesis of the project are summarised in the [README](../../README.md); this is the
 complete set.
 
@@ -20,6 +20,12 @@ complete set.
 - [ADR-0012](ADR-0012-deterministic-rule-overrides-the-model.md) — The deterministic rule overrides the model, but does not skip it
 - [ADR-0014](ADR-0014-validation-failure-becomes-an-escalate.md) — A validation failure becomes a motivated `ESCALATE`
 - [ADR-0018](ADR-0018-provenance-as-a-contract-property.md) — Provenance is a property of the REST contract
+- [ADR-0022](ADR-0022-one-owner-per-resilience-concern.md) — One owner per resilience concern, and a known outage becomes a decision
+
+## Measuring and paying for a non-deterministic system
+
+- [ADR-0003](ADR-0003-prompt-promotion-gated-by-the-eval.md) — Prompt promotion is gated by the eval, on absolute floors
+- [ADR-0021](ADR-0021-observability-from-the-framework-and-a-token-budget.md) — The `gen_ai.*` metrics come from the framework, and the token budget reads the same source
 
 ## Retrieval
 

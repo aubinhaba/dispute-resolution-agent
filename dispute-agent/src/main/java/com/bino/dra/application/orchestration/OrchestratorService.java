@@ -2,6 +2,7 @@ package com.bino.dra.application.orchestration;
 
 import com.bino.dra.application.guard.PromptSafetyGuard;
 import com.bino.dra.application.port.out.DecisionEngine;
+import com.bino.dra.application.port.out.DependencyUnavailableException;
 import com.bino.dra.application.port.out.EvidenceGatherer;
 import com.bino.dra.application.port.out.RuleRetriever;
 import com.bino.dra.domain.model.Dispute;
@@ -57,17 +58,33 @@ public class OrchestratorService {
         }
         Dispute safe = guard.neutralise(dispute);
 
-        EvidenceBundle bundle = evidenceGatherer.gather(safe);
-        List<String> rulePassages =
-                ruleRetriever.retrieveRulePassages(safe.reasonCode(), safe.network());
+        EvidenceBundle bundle;
+        // rulePassages holds whatever was retrieved before the outage: empty if RAG never ran
+        List<String> rulePassages = List.of();
+        try {
+            bundle = evidenceGatherer.gather(safe);
+            rulePassages = ruleRetriever.retrieveRulePassages(safe.reasonCode(), safe.network());
+        } catch (DependencyUnavailableException outage) {
+            return escalateWithoutModel(safe, rulePassages, outageReason(outage));
+        }
 
         if (bundle.isEmpty()) {
             return escalateWithoutModel(safe, rulePassages, "no attested evidence from the tools");
         }
 
-        DisputeDecision proposed = decisionEngine.decide(safe, bundle, rulePassages);
+        DisputeDecision proposed;
+        try {
+            proposed = decisionEngine.decide(safe, bundle, rulePassages);
+        } catch (DependencyUnavailableException outage) {
+            return escalateWithoutModel(safe, rulePassages, outageReason(outage));
+        }
 
         return applyGovernance(safe, bundle, proposed);
+    }
+
+    // Names the dependency: "the model is down" and "MCP is down" call for different actions
+    private static String outageReason(DependencyUnavailableException outage) {
+        return "dependency unavailable: " + outage.dependency();
     }
 
     private DisputeDecision escalateWithoutModel(Dispute dispute, List<String> rulePassages, String reason) {
