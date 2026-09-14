@@ -36,21 +36,21 @@ public record SubmitDisputeRequest(
         try {
             return Network.valueOf(value.toUpperCase());
         } catch (IllegalArgumentException unknown) {
-            throw new IllegalArgumentException(
+            throw new InvalidDisputeRequestException(
                     "network must be VISA or MASTERCARD, received: " + value);
         }
     }
 
     private Money amount() {
         if (disputedAmountMinorUnits == null) {
-            throw new IllegalArgumentException("disputedAmountMinorUnits required");
+            throw new InvalidDisputeRequestException("disputedAmountMinorUnits required");
         }
         return new Money(disputedAmountMinorUnits, required(currency, "currency"));
     }
 
     private static String required(String value, String field) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException(field + " required");
+            throw new InvalidDisputeRequestException(field + " required");
         }
         return value;
     }

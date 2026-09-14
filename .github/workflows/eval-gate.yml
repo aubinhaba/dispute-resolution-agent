@@ -11,6 +11,9 @@ on:
   workflow_dispatch:
   push:
     tags: ['v*']
+  pull_request:
+    paths:
+      - 'dispute-agent/src/main/resources/prompts/**'
 
 jobs:
   eval:

@@ -35,8 +35,6 @@ public class ApiSecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(routes -> routes
-                        // First: a 404 re-dispatches to /error unauthenticated, and that 401
-                        // would replace the real status
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/audit.html", "/favicon.ico").permitAll()
@@ -44,9 +42,10 @@ public class ApiSecurityConfig {
                 .addFilterBefore(new ApiKeyAuthFilter(apiKey), UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(e -> e.authenticationEntryPoint((request, response, failure) -> {
                     response.setStatus(401);
-                    response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
                     response.getWriter().write("""
-                            {"error":"API key missing or invalid"}""");
+                            {"type":"about:blank","title":"Unauthorized","status":401,\
+                            "detail":"API key missing or invalid"}""");
                 }))
                 .headers(Customizer.withDefaults())
                 .build();

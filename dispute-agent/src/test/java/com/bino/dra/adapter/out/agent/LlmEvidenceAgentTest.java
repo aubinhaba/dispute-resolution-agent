@@ -114,7 +114,8 @@ class LlmEvidenceAgentTest {
     void instrument_preserves_the_catalogue_exposed_to_the_model() {
         ToolCallbackProvider provider = provider(new FakeToolCallback("get_transaction", "{\"ok\":true}"));
 
-        List<ToolCallback> instrumented = LlmEvidenceAgent.instrument(provider, new ToolCallRecorder(8));
+        List<ToolCallback> instrumented = LlmEvidenceAgent.instrument(
+                provider, new ToolCallRecorder(8), testBreaker(), noRetry());
 
         assertThat(instrumented).hasSize(1);
         assertThat(instrumented.getFirst().getToolDefinition().name()).isEqualTo("get_transaction");
@@ -124,7 +125,7 @@ class LlmEvidenceAgentTest {
     void the_decorator_returns_a_stop_message_instead_of_calling_the_tool() {
         FakeToolCallback tool = new FakeToolCallback("get_transaction", "{\"transactionId\":\"TXN-EVAL-001\"}");
         ToolCallRecorder recorder = new ToolCallRecorder(1);
-        ToolCallback instrumented = new RecordingToolCallback(tool, recorder);
+        ToolCallback instrumented = new RecordingToolCallback(tool, recorder, testBreaker(), noRetry());
 
         String first = instrumented.call("{\"transactionId\":\"TXN-EVAL-001\"}");
         String second = instrumented.call("{\"transactionId\":\"TXN-EVAL-001\"}");
@@ -140,7 +141,7 @@ class LlmEvidenceAgentTest {
         FakeToolCallback tool = FakeToolCallback.failing("get_transaction",
                 "Unknown transactionId 'TXN-MADE-UP'. Double-check the identifier.");
         ToolCallRecorder recorder = new ToolCallRecorder(8);
-        ToolCallback instrumented = new RecordingToolCallback(tool, recorder);
+        ToolCallback instrumented = new RecordingToolCallback(tool, recorder, testBreaker(), noRetry());
 
         try {
             instrumented.call("{\"transactionId\":\"TXN-MADE-UP\"}");
@@ -154,6 +155,17 @@ class LlmEvidenceAgentTest {
 
     private static ToolCallbackProvider provider(ToolCallback... callbacks) {
         return () -> callbacks;
+    }
+
+    // One attempt: Retry.ofDefaults() would retry any exception three times and make these
+    // budget and trail assertions count three calls where they expect one
+    private static io.github.resilience4j.retry.Retry noRetry() {
+        return io.github.resilience4j.retry.Retry.of("mcp-test",
+                io.github.resilience4j.retry.RetryConfig.custom().maxAttempts(1).build());
+    }
+
+    private static io.github.resilience4j.circuitbreaker.CircuitBreaker testBreaker() {
+        return io.github.resilience4j.circuitbreaker.CircuitBreaker.ofDefaults("mcp-test");
     }
 
     private static final class FakeToolCallback implements ToolCallback {

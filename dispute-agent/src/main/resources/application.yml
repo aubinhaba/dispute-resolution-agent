@@ -2,9 +2,9 @@ spring:
   application:
     name: dispute-agent
 
-  # The jar default is the production topology: Postgres + Flyway + pgvector. Tests that need
-  # no database activate the `no-db` profile. The password default only unlocks local compose;
-  # a real deployment must set DRA_DB_PASSWORD
+  config:
+    import: classpath:prompts/versions.yml
+
   datasource:
     url: ${DRA_DB_URL:jdbc:postgresql://localhost:5432/dra}
     username: ${DRA_DB_USER:dra}
@@ -12,11 +12,15 @@ spring:
 
   ai:
     anthropic:
-      # No api-key here: Spring AI reads ANTHROPIC_API_KEY from the environment
+      max-retries: 0
+      # The timeout stays with the HTTP client: a Resilience4j TimeLimiter needs an async call
+      timeout: 60s
       chat:
         options:
           model: claude-haiku-4-5
           temperature: 0.0
+          # Per-call output bound; the per-dispute budget is checked between calls (see ADR-0021)
+          max-tokens: 2048
 
     # all-MiniLM-L6-v2 (ONNX) runs locally, so a given text always yields the same vector
     model:
@@ -28,8 +32,6 @@ spring:
           # The jar ships a real tokenizer.json but its model.onnx is a 133-byte Git LFS pointer
           uri: classpath:/onnx/all-MiniLM-L6-v2/tokenizer.json
         cache:
-          # Aligns with the directory a bare TransformersEmbeddingModel uses, otherwise the same
-          # model is cached twice and one of the two paths re-downloads 86 MB on every run
           directory: ${java.io.tmpdir}/spring-ai-onnx-generative
 
     mcp:
@@ -37,8 +39,6 @@ spring:
         name: dispute-agent
         version: 0.1.0
         type: SYNC
-        # true means the handshake happens during context refresh: the peer must already be up,
-        # so its lifecycle now belongs to compose rather than to this client (see ADR-0016)
         initialized: true
         request-timeout: 30s
         streamable-http:
@@ -58,41 +58,50 @@ spring:
         distance-type: COSINE_DISTANCE
 
 dra:
-  # No matchIfMissing on any adapter condition: an absent property fails startup by design,
-  # rather than electing an implicit winner
   security:
     # Empty by default: the application refuses to start without it (see ADR-0020)
     api-key: ${DRA_API_KEY:}
   persistence: ${DRA_PERSISTENCE:jdbc}
   agent:
-    decision-version: "decision-llm@v1.2.0"
-    evidence-version: "evidence-llm@v1.0.0"
+    # Derived from the pin, never copied: two literals could name different versions
+    decision-version: "decision-llm@${dra.prompts.decision}"
+    evidence-version: "evidence-llm@${dra.prompts.evidence}"
     # Spring AI's tool-calling loop exposes no turn limit: this is the only bound
     max-tool-calls: 8
+  budget:
+    evidence-max-tokens: 40000
+    decision-max-tokens: 12000
+  resilience:
+    model:
+      max-attempts: 3
+      wait: 500ms
+      # Short window on purpose: a dispute costs ~3 calls, so a wide one would open far too late
+      sliding-window: 10
+      failure-rate-threshold: 50
+      open-duration: 30s
+    mcp:
+      max-attempts: 3
+      wait: 200ms
+      sliding-window: 10
+      failure-rate-threshold: 50
+      open-duration: 30s
   orchestrator:
     # 1000.00 EUR in minor units; a business threshold gets renegotiated, so config not a constant
     escalation-threshold-minor-units: 100000
-    # Calendar days, not business days - the rule corpus says so explicitly
     representment-min-days-remaining: 3
-    # Marks the decisions taken with no model involved. The orchestrator@ prefix is matched
-    # by DecisionView to label provenance, so renaming it relabels those decisions as MODEL.
     version: "orchestrator@v1.0.0"
   validation:
     known-reason-codes: "10.4,11.3,12.6,13.1,13.2,13.3,4808,4834,4837,4853,4855"
   rag:
     store: ${DRA_RAG_STORE:pgvector}
-    # candidates drives recall, top-k drives how much noise reaches the prompt
     candidates: 50
     top-k: 5
-    # heuristic | llm | none. none is the measurement control arm, not a production value.
     reranker: heuristic
   mcp:
     # Sent as X-MCP-Secret on every outbound call; must match the MCP server
     shared-secret: ${DRA_MCP_SHARED_SECRET:}
-    # No longer launched by the client: this path is now used by the test fixture only
     payment-server-jar: ../mcp-payment-server/target/mcp-payment-server-0.1.0-SNAPSHOT.jar
   submission:
-    # Small on purpose: concurrency costs model calls before it costs CPU
     worker-pool-size: 4
 
 server:
@@ -100,18 +109,21 @@ server:
   shutdown: graceful
 
 spring.lifecycle:
-  # A dispute takes ~20 s: a shorter budget would cut exactly what graceful shutdown protects
   timeout-per-shutdown-phase: 30s
 
 management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,metrics
   endpoint:
     health:
       probes:
-        # Compose probes readiness, which only turns UP at ApplicationReadyEvent - after the
-        # corpus has been indexed inside a @Bean method
         enabled: true
       show-details: never
+
+  otlp:
+    metrics:
+      export:
+        enabled: ${DRA_OTLP_ENABLED:false}
+        url: ${DRA_OTLP_METRICS_URL:http://localhost:4318/v1/metrics}

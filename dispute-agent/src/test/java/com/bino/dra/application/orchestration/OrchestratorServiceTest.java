@@ -2,6 +2,7 @@ package com.bino.dra.application.orchestration;
 
 import com.bino.dra.application.guard.PromptSafetyGuard;
 import com.bino.dra.application.port.out.DecisionEngine;
+import com.bino.dra.application.port.out.DependencyUnavailableException;
 import com.bino.dra.application.port.out.EvidenceGatherer;
 import com.bino.dra.application.port.out.RuleRetriever;
 import com.bino.dra.domain.model.Decision;
@@ -19,6 +20,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class OrchestratorServiceTest {
 
@@ -131,7 +133,8 @@ class OrchestratorServiceTest {
                 Instant.parse("2026-06-18T12:00:00Z"));
     }
 
-    private static OrchestratorService service(StubGatherer g, StubRetriever r, StubEngine e) {
+    // Typed by the ports, not by the stubs: some tests pass stubs that fail instead
+    private static OrchestratorService service(EvidenceGatherer g, RuleRetriever r, DecisionEngine e) {
         return new OrchestratorService(g, r, e, new PromptSafetyGuard(), CLOCK,
                 THRESHOLD, MIN_DAYS, "orchestrator@v1.0.0");
     }
@@ -309,6 +312,78 @@ class OrchestratorServiceTest {
 
         assertThat(result.decision()).isEqualTo(Decision.ESCALATE);
         assertThat(result.rationale()).contains("representment deadline expired");
+    }
+
+    // A known outage becomes a motivated decision; a bug stays an exception, hence a FAILED case
+    @Test
+    void an_outage_of_the_tool_server_escalates_naming_the_dependency() {
+        StubEngine engine = new StubEngine(modelResponse(Decision.REPRESENT, 0.9, List.of("TXN-EVAL-001")));
+
+        DisputeDecision result = service(
+                new FailingGatherer("mcp-payments"), new StubRetriever(List.of("rule")), engine)
+                .resolve(dispute(12_000L));
+
+        assertThat(result.decision()).isEqualTo(Decision.ESCALATE);
+        assertThat(result.rationale()).startsWith("[AUTOMATIC ESCALATION").contains("mcp-payments");
+        assertThat(result.agentVersion()).isEqualTo("orchestrator@v1.0.0");
+        assertThat(result.confidence()).isZero();
+        assertThat(engine.called).isFalse();
+    }
+
+    @Test
+    void an_outage_of_the_model_escalates_keeping_the_rules_on_file() {
+        DisputeDecision result = service(
+                new StubGatherer(attestedBundle()),
+                new StubRetriever(List.of("[visa-10.4#liability-shift] ...")),
+                new FailingEngine("anthropic"))
+                .resolve(dispute(12_000L));
+
+        assertThat(result.decision()).isEqualTo(Decision.ESCALATE);
+        assertThat(result.rationale()).contains("anthropic");
+        assertThat(result.citedRulePassages()).containsExactly("[visa-10.4#liability-shift] ...");
+        assertThat(result.agentVersion()).isEqualTo("orchestrator@v1.0.0");
+    }
+
+    @Test
+    void a_bug_is_not_an_outage_and_keeps_propagating() {
+        assertThatThrownBy(() -> service(
+                new StubGatherer(attestedBundle()),
+                new StubRetriever(List.of("rule")),
+                new CrashingEngine()).resolve(dispute(12_000L)))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    private static final class FailingGatherer implements EvidenceGatherer {
+        private final String dependency;
+
+        FailingGatherer(String dependency) {
+            this.dependency = dependency;
+        }
+
+        @Override
+        public EvidenceBundle gather(Dispute dispute) {
+            throw new DependencyUnavailableException(dependency, "unreachable", null);
+        }
+    }
+
+    private static final class FailingEngine implements DecisionEngine {
+        private final String dependency;
+
+        FailingEngine(String dependency) {
+            this.dependency = dependency;
+        }
+
+        @Override
+        public DisputeDecision decide(Dispute dispute, EvidenceBundle evidence, List<String> rulePassages) {
+            throw new DependencyUnavailableException(dependency, "unreachable", null);
+        }
+    }
+
+    private static final class CrashingEngine implements DecisionEngine {
+        @Override
+        public DisputeDecision decide(Dispute dispute, EvidenceBundle evidence, List<String> rulePassages) {
+            throw new IllegalStateException("our own bug");
+        }
     }
 
     @Test

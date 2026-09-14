@@ -1,5 +1,6 @@
 package com.bino.dra.adapter.out.llm;
 
+import com.bino.dra.adapter.out.llm.TokenBudgetAdvisor.TokenBudgetExceededException;
 import com.bino.dra.domain.model.Decision;
 import com.bino.dra.domain.model.Dispute;
 import com.bino.dra.domain.model.DisputeDecision;
@@ -8,6 +9,7 @@ import com.bino.dra.domain.model.Money;
 import com.bino.dra.domain.model.Network;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.api.Advisor;
 import org.springframework.ai.converter.BeanOutputConverter;
 import org.springframework.core.io.ByteArrayResource;
 
@@ -25,51 +27,37 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class LlmDecisionEngineProseTest {
+// The only realistic path: the first call starts on a fresh budget, so it is the repair that the
+// cap refuses - and a repair is what doubles the price of a case (see ADR-0014)
+class LlmDecisionEngineTokenCapTest {
 
-    private static final Instant NOW = Instant.parse("2026-08-21T10:00:00Z");
+    private static final Instant NOW = Instant.parse("2026-09-12T10:00:00Z");
 
-    private static final String PROSE = """
-            Based on my analysis, I recommend representment because 3DS succeeded.
-            """;
-
-    private static final String VALID_JSON = """
-            {"decision":"ACCEPT","confidence":0.7,"rationale":"Insufficient evidence.",
-             "citedReasonCode":"10.4","citedRulePassages":["[visa-10.4#a] A passage."],
+    // Citation without a chunk id: the validator refuses it, which is what starts the repair
+    private static final String UNATTESTABLE_JSON = """
+            {"decision":"REPRESENT","confidence":0.8,"rationale":"3DS succeeded.",
+             "citedReasonCode":"10.4","citedRulePassages":["A passage with no identifier."],
              "evidenceRefs":["TX-1"]}
             """;
 
     @Test
-    void a_prose_answer_triggers_the_repair_instead_of_an_exception() {
-        LlmDecisionEngine engine = engineAnswering(PROSE, VALID_JSON);
-
-        DisputeDecision decision = engine.decide(dispute(), bundle(), passages());
-
-        assertThat(decision.decision()).isEqualTo(Decision.ACCEPT);
-        assertThat(decision.agentVersion()).endsWith("+repaired");
-    }
-
-    @Test
-    void two_prose_answers_yield_a_motivated_ESCALATE_and_never_an_exception() {
-        LlmDecisionEngine engine = engineAnswering(PROSE, PROSE);
-
-        DisputeDecision decision = engine.decide(dispute(), bundle(), passages());
+    void a_budget_spent_before_the_repair_yields_a_motivated_ESCALATE() {
+        DisputeDecision decision = engineWhoseRepairExceeds().decide(dispute(), bundle(), passages());
 
         assertThat(decision.decision()).isEqualTo(Decision.ESCALATE);
-        assertThat(decision.agentVersion()).endsWith("+repair-failed");
+        assertThat(decision.agentVersion()).endsWith("+token-capped");
         assertThat(decision.confidence()).isZero();
-        assertThat(decision.rationale()).contains("usable JSON");
+        assertThat(decision.rationale()).contains("token budget");
         assertThat(decision.citedRulePassages()).isNotEmpty();
     }
 
-    private static LlmDecisionEngine engineAnswering(String first, String second) {
+    private static LlmDecisionEngine engineWhoseRepairExceeds() {
         ChatClient.Builder builder = mock(ChatClient.Builder.class, RETURNS_DEEP_STUBS);
         BeanOutputConverter<DecisionDraft> converter = new BeanOutputConverter<>(DecisionDraft.class);
         when(builder.build().prompt().system(anyString()).user(anyString())
-                .advisors(any(org.springframework.ai.chat.client.advisor.api.Advisor[].class))
-                .call().entity(DecisionDraft.class))
-                .thenAnswer(call -> converter.convert(first))
-                .thenAnswer(call -> converter.convert(second));
+                .advisors(any(Advisor[].class)).call().entity(DecisionDraft.class))
+                .thenAnswer(call -> converter.convert(UNATTESTABLE_JSON))
+                .thenThrow(new TokenBudgetExceededException(12_400L, 12_000L));
 
         return new LlmDecisionEngine(
                 builder,
@@ -82,8 +70,7 @@ class LlmDecisionEngineProseTest {
 
     private static Dispute dispute() {
         return new Dispute("D-1", "TX-1", "M-1", Network.VISA, "10.4",
-                new Money(12_000L, "EUR"), NOW, NOW.plusSeconds(2_592_000L),
-                "I never ordered this");
+                new Money(12_000L, "EUR"), NOW, NOW.plusSeconds(2_592_000L), "I never ordered this");
     }
 
     private static EvidenceBundle bundle() {

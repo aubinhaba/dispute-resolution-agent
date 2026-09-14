@@ -45,6 +45,12 @@ class ActuatorProbesIT {
     }
 
     @Test
+    void metrics_is_exposed_but_only_behind_the_key() {
+        assertThat(statusWithKey("/actuator/metrics/gen_ai.client.token.usage")).isEqualTo(200);
+        assertThat(status("/actuator/metrics")).isEqualTo(401);
+    }
+
+    @Test
     void a_caller_without_a_key_cannot_tell_a_missing_endpoint_from_a_protected_one() {
         assertThat(status("/actuator/env")).isEqualTo(401);
         assertThat(status("/disputes/whatever")).isEqualTo(401);
