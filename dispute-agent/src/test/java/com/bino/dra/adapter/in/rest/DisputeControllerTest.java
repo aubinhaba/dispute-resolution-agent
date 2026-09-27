@@ -15,6 +15,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -37,6 +38,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(DisputeController.class)
 @Import(ApiSecurityConfig.class)
 class DisputeControllerTest {
+
+    // Relative, never a fixed date: the deadline rule turns a fixed one into a time bomb
+    private static final String FAR_DEADLINE = Instant.now().plus(Duration.ofDays(60)).toString();
 
     private static final Instant NOW = Instant.parse("2026-08-21T10:00:00Z");
 
@@ -219,9 +223,9 @@ class DisputeControllerTest {
                   "disputedAmountMinorUnits": 4500,
                   "currency": "EUR",
                   "raisedAt": "2026-08-20T09:00:00Z",
-                  "representmentDueBy": "2026-09-20T09:00:00Z",
+                  "representmentDueBy": "%s",
                   "issuerClaim": "Transaction not recognised."
                 }
-                """.formatted(disputeId);
+                """.formatted(disputeId, FAR_DEADLINE);
     }
 }

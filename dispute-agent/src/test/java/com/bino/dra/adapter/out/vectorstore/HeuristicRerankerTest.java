@@ -39,6 +39,20 @@ class HeuristicRerankerTest {
     }
 
     @Test
+    void a_cross_cutting_rule_outranks_a_distractor_of_equal_similarity() {
+        Document distractor = chunk("visa-12.6#scope", "visa-12.6", "VISA", "12.6", 0.60);
+        Document crossCutting = chunk("shared-3ds#principle", "shared-3ds", "ANY", "ANY", 0.60);
+
+        List<Document> reranked = new HeuristicReranker(2)
+                .process(VISA_10_4_QUERY, List.of(distractor, crossCutting));
+
+        // 0.60 + 0.15 beats 0.60 + 0.10: without that gap 3-D Secure stays at rank 46 and is never
+        // cited, though it is the rule that decides a fraud dispute
+        assertThat(reranked).extracting(Document::getId)
+                .containsExactly("shared-3ds#principle", "visa-12.6#scope");
+    }
+
+    @Test
     void a_generic_cross_cutting_rule_outranks_a_distractor_but_not_a_governing_rule() {
         Document distractor = chunk("visa-13.3#scope", "visa-13.3", "VISA", "13.3", 0.95);
         Document crossCutting = chunk("shared-lifecycle#stages", "shared-lifecycle", "ANY", "ANY", 0.20);

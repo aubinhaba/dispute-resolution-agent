@@ -12,6 +12,8 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -21,6 +23,9 @@ import static org.assertj.core.api.Assertions.assertThat;
         properties = "spring.ai.anthropic.api-key=not-used-by-this-test")
 @Import(PostgresTestcontainer.class)
 class DemoScenarioIT {
+
+    // Relative, never a fixed date: the deadline rule turns a fixed one into a time bomb
+    private static final String FAR_DEADLINE = Instant.now().plus(Duration.ofDays(60)).toString();
 
     private static final String LUHN_VALID_PAN = "4111111111111111";
 
@@ -120,9 +125,9 @@ class DemoScenarioIT {
                   "disputedAmountMinorUnits": 4500,
                   "currency": "EUR",
                   "raisedAt": "2026-08-20T09:00:00Z",
-                  "representmentDueBy": "2026-12-20T09:00:00Z",
+                  "representmentDueBy": "%s",
                   "issuerClaim": "%s"
                 }
-                """.formatted(id, claim);
+                """.formatted(id, FAR_DEADLINE, claim);
     }
 }

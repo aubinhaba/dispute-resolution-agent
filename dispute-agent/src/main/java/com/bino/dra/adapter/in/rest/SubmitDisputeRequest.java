@@ -36,8 +36,9 @@ public record SubmitDisputeRequest(
         try {
             return Network.valueOf(value.toUpperCase());
         } catch (IllegalArgumentException unknown) {
-            throw new InvalidDisputeRequestException(
-                    "network must be VISA or MASTERCARD, received: " + value);
+            // The message never echoes the received value: returning it would hand back the very
+            // data we just refused
+            throw new InvalidDisputeRequestException("network must be VISA or MASTERCARD");
         }
     }
 

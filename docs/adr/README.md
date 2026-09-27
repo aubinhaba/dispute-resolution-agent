@@ -21,6 +21,7 @@ complete set.
 - [ADR-0014](ADR-0014-validation-failure-becomes-an-escalate.md) — A validation failure becomes a motivated `ESCALATE`
 - [ADR-0018](ADR-0018-provenance-as-a-contract-property.md) — Provenance is a property of the REST contract
 - [ADR-0022](ADR-0022-one-owner-per-resilience-concern.md) — One owner per resilience concern, and a known outage becomes a decision
+- [ADR-0023](ADR-0023-failure-classification-belongs-to-the-dependency.md) — A dependency's failure-classification predicate belongs to its own adapter
 
 ## Measuring and paying for a non-deterministic system
 

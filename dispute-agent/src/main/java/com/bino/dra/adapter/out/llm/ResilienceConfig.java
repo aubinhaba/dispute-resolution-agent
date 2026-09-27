@@ -16,12 +16,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
+import java.util.function.Predicate;
 
-// Base modules wired by hand: resilience4j-spring-boot3 targets Boot 3 and has no Boot 4 equivalent
+// Base modules wired by hand: resilience4j-spring-boot3 targets Boot 3 and has no Boot 4 equivalent.
+// The MCP breaker and retry live next to the tool callback whose failures they classify
 @Configuration
 public class ResilienceConfig {
-
-    static final String MCP = "mcp-payments";
 
     @Bean
     CircuitBreakerRegistry circuitBreakers(MeterRegistry meterRegistry) {
@@ -44,7 +44,7 @@ public class ResilienceConfig {
             @Value("${dra.resilience.model.failure-rate-threshold}") float threshold,
             @Value("${dra.resilience.model.open-duration}") Duration openDuration) {
         return registry.circuitBreaker(ResilienceAdvisor.DEPENDENCY,
-                breaker(window, threshold, openDuration));
+                breaker(window, threshold, openDuration, ResilienceAdvisor::isProviderFailure));
     }
 
     @Bean
@@ -52,24 +52,7 @@ public class ResilienceConfig {
             RetryRegistry registry,
             @Value("${dra.resilience.model.max-attempts}") int attempts,
             @Value("${dra.resilience.model.wait}") Duration wait) {
-        return registry.retry(ResilienceAdvisor.DEPENDENCY, retry(attempts, wait));
-    }
-
-    @Bean
-    CircuitBreaker mcpCircuitBreaker(
-            CircuitBreakerRegistry registry,
-            @Value("${dra.resilience.mcp.sliding-window}") int window,
-            @Value("${dra.resilience.mcp.failure-rate-threshold}") float threshold,
-            @Value("${dra.resilience.mcp.open-duration}") Duration openDuration) {
-        return registry.circuitBreaker(MCP, breaker(window, threshold, openDuration));
-    }
-
-    @Bean
-    Retry mcpRetry(
-            RetryRegistry registry,
-            @Value("${dra.resilience.mcp.max-attempts}") int attempts,
-            @Value("${dra.resilience.mcp.wait}") Duration wait) {
-        return registry.retry(MCP, retry(attempts, wait));
+        return registry.retry(ResilienceAdvisor.DEPENDENCY, retry(attempts, wait, ResilienceAdvisor::isTransient));
     }
 
     // One customizer covers every ChatClient: Spring AI applies these to the prototype builder
@@ -81,21 +64,23 @@ public class ResilienceConfig {
         return builder -> builder.defaultAdvisors(advisor);
     }
 
-    private static CircuitBreakerConfig breaker(int window, float threshold, Duration openDuration) {
+    // The predicate is per dependency: each client wraps its failures in its own exception types
+    public static CircuitBreakerConfig breaker(int window, float threshold, Duration openDuration,
+                                               Predicate<Throwable> countsAsFailure) {
         return CircuitBreakerConfig.custom()
                 .slidingWindowSize(window)
                 .minimumNumberOfCalls(window)
                 .failureRateThreshold(threshold)
                 .waitDurationInOpenState(openDuration)
-                .ignoreException(failure -> !ResilienceAdvisor.isProviderFailure(failure))
+                .ignoreException(failure -> !countsAsFailure.test(failure))
                 .build();
     }
 
-    private static RetryConfig retry(int attempts, Duration wait) {
+    public static RetryConfig retry(int attempts, Duration wait, Predicate<Throwable> retryable) {
         return RetryConfig.custom()
                 .maxAttempts(attempts)
                 .waitDuration(wait)
-                .retryOnException(ResilienceAdvisor::isTransient)
+                .retryOnException(retryable)
                 .build();
     }
 }

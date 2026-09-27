@@ -95,8 +95,9 @@ between two specifications rather than model errors · [docs/EVALUATION.md](docs
 - **Provenance is a property of the contract, not of a UI** — a colour in a DOM cannot be tested or gated · [ADR-0018](docs/adr/ADR-0018-provenance-as-a-contract-property.md)
 
 - **One owner per resilience concern** — the SDK already retried twice, so a known outage becomes a motivated `ESCALATE` while a bug stays a `FAILED` · [ADR-0022](docs/adr/ADR-0022-one-owner-per-resilience-concern.md)
+- **A failure-classification predicate belongs to its own adapter** — wired to another dependency's, a retry retries nothing and a breaker never opens, silently · [ADR-0023](docs/adr/ADR-0023-failure-classification-belongs-to-the-dependency.md)
 
-All twenty-two, each with its rejected alternatives → [`docs/adr/`](docs/adr/README.md)
+All twenty-three, each with its rejected alternatives → [`docs/adr/`](docs/adr/README.md)
 
 ## Run it
 

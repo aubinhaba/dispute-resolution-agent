@@ -28,4 +28,9 @@ public record EvidenceBundle(
     public boolean isEmpty() {
         return evidenceRefs.isEmpty();
     }
+
+    // Refs without a narrative carry identifiers, not facts: the decision step would see an empty file
+    public boolean hasNarrative() {
+        return (summary != null && !summary.isBlank()) || !findings.isEmpty();
+    }
 }

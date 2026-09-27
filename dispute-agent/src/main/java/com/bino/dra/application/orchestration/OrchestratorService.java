@@ -8,6 +8,8 @@ import com.bino.dra.application.port.out.RuleRetriever;
 import com.bino.dra.domain.model.Dispute;
 import com.bino.dra.domain.model.DisputeDecision;
 import com.bino.dra.domain.model.EvidenceBundle;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,8 @@ import java.util.Optional;
 
 @Service
 public class OrchestratorService {
+
+    private static final Logger log = LoggerFactory.getLogger(OrchestratorService.class);
 
     private final EvidenceGatherer evidenceGatherer;
     private final RuleRetriever ruleRetriever;
@@ -65,26 +69,34 @@ public class OrchestratorService {
             bundle = evidenceGatherer.gather(safe);
             rulePassages = ruleRetriever.retrieveRulePassages(safe.reasonCode(), safe.network());
         } catch (DependencyUnavailableException outage) {
-            return escalateWithoutModel(safe, rulePassages, outageReason(outage));
+            return escalateForOutage(safe, rulePassages, outage);
         }
 
         if (bundle.isEmpty()) {
             return escalateWithoutModel(safe, rulePassages, "no attested evidence from the tools");
+        }
+        // The decision prompt reads an empty file as ACCEPT: a lost narrative must reach a human
+        if (!bundle.hasNarrative()) {
+            return escalateWithoutModel(safe, rulePassages,
+                    "evidence gathering interrupted (" + bundle.agentVersion() + ")")
+                    .withEvidenceRefs(bundle.evidenceRefs());
         }
 
         DisputeDecision proposed;
         try {
             proposed = decisionEngine.decide(safe, bundle, rulePassages);
         } catch (DependencyUnavailableException outage) {
-            return escalateWithoutModel(safe, rulePassages, outageReason(outage));
+            return escalateForOutage(safe, rulePassages, outage);
         }
 
         return applyGovernance(safe, bundle, proposed);
     }
 
-    // Names the dependency: "the model is down" and "MCP is down" call for different actions
-    private static String outageReason(DependencyUnavailableException outage) {
-        return "dependency unavailable: " + outage.dependency();
+    // The message names the dependency and the detail: "revoked key" and "503" call for different actions
+    private DisputeDecision escalateForOutage(Dispute dispute, List<String> rulePassages,
+                                              DependencyUnavailableException outage) {
+        log.warn("Dependency outage on dispute {}: {}", dispute.disputeId(), outage.getMessage(), outage);
+        return escalateWithoutModel(dispute, rulePassages, outage.getMessage());
     }
 
     private DisputeDecision escalateWithoutModel(Dispute dispute, List<String> rulePassages, String reason) {

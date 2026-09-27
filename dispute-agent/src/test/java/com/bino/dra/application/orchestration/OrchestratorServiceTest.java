@@ -218,6 +218,36 @@ class OrchestratorServiceTest {
         assertThat(result.evidenceRefs()).isEmpty();
     }
 
+    // The tools answered but the narrative was lost (token cap, unparsable answer): the decision
+    // prompt reads an empty file as ACCEPT (rule 5a), so the case must reach a human instead
+    @Test
+    void a_bundle_without_narrative_escalates_without_consulting_the_model() {
+        StubEngine engine = new StubEngine(modelResponse(Decision.ACCEPT, 0.9, List.of("TXN-EVAL-001")));
+
+        DisputeDecision result = service(
+                new StubGatherer(narrativeLostBundle()), new StubRetriever(List.of("rule")), engine)
+                .resolve(dispute(12_000L));
+
+        assertThat(result.decision()).isEqualTo(Decision.ESCALATE);
+        assertThat(result.rationale()).startsWith("[AUTOMATIC ESCALATION").contains("+token-capped");
+        assertThat(engine.called).isFalse();
+        assertThat(result.evidenceRefs()).containsExactly("TXN-EVAL-001", "CUST-1");
+        assertThat(result.agentVersion()).isEqualTo("orchestrator@v1.0.0");
+        assertThat(result.confidence()).isZero();
+    }
+
+    private static EvidenceBundle narrativeLostBundle() {
+        return new EvidenceBundle(
+                "D-1", "TXN-EVAL-001",
+                "",
+                List.of(),
+                List.of("TXN-EVAL-001", "CUST-1"),
+                List.of("get_transaction", "get_fulfillment_record"),
+                false,
+                "evidence-llm@v1.0.0+token-capped",
+                Instant.parse("2026-06-18T11:59:00Z"));
+    }
+
     @Test
     void cardholder_data_on_the_way_in_escalates_before_any_dispatch() {
         StubGatherer gatherer = new StubGatherer(attestedBundle());
@@ -324,7 +354,9 @@ class OrchestratorServiceTest {
                 .resolve(dispute(12_000L));
 
         assertThat(result.decision()).isEqualTo(Decision.ESCALATE);
-        assertThat(result.rationale()).startsWith("[AUTOMATIC ESCALATION").contains("mcp-payments");
+        // The detail tells a revoked key from a 503: without it the audit trail names no cause
+        assertThat(result.rationale()).startsWith("[AUTOMATIC ESCALATION")
+                .contains("mcp-payments").contains("unreachable");
         assertThat(result.agentVersion()).isEqualTo("orchestrator@v1.0.0");
         assertThat(result.confidence()).isZero();
         assertThat(engine.called).isFalse();
