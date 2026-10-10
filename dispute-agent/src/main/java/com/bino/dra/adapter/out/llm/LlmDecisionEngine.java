@@ -57,7 +57,18 @@ public class LlmDecisionEngine implements DecisionEngine {
 
     @Override
     public DisputeDecision decide(Dispute dispute, EvidenceBundle evidence, List<String> rulePassages) {
-        String userMessage = DecisionPrompt.userMessage(dispute, evidence, rulePassages);
+        return produce(dispute, rulePassages, DecisionPrompt.userMessage(dispute, evidence, rulePassages));
+    }
+
+    // Same path as decide(): a revised decision goes through validation and the single repair too
+    @Override
+    public DisputeDecision revise(Dispute dispute, EvidenceBundle evidence, List<String> rulePassages,
+                                  DisputeDecision previous, List<String> objections) {
+        return produce(dispute, rulePassages, DecisionPrompt.reviseMessage(
+                DecisionPrompt.userMessage(dispute, evidence, rulePassages), previous, objections));
+    }
+
+    private DisputeDecision produce(Dispute dispute, List<String> rulePassages, String userMessage) {
         Instant decidedAt = clock.instant();
         // One budget for the phase: the first call and its repair draw from the same allowance
         TokenBudgetAdvisor budget = new TokenBudgetAdvisor(maxTokens);

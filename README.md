@@ -56,7 +56,7 @@ flowchart LR
 | Transactional data, investigated by the model | **MCP** tool-calling loop | `EvidenceGatherer` |
 | Scheme rules (stable corpus) | **RAG** with reranking | `RuleRetriever` |
 
-`OrchestratorService.resolve(Dispute)` is the single entry point and depends only on the three driven
+`OrchestratorService.resolve(Dispute)` is the single entry point and depends only on its driven
 ports — it does not know a language model exists. Its decision logic, escalation included, is covered
 by tests needing no API key, no network and no Spring context; an ArchUnit test keeps frameworks out
 of the domain and Spring AI out of everything but the adapters.
@@ -97,7 +97,9 @@ between two specifications rather than model errors · [docs/EVALUATION.md](docs
 - **One owner per resilience concern** — the SDK already retried twice, so a known outage becomes a motivated `ESCALATE` while a bug stays a `FAILED` · [ADR-0022](docs/adr/ADR-0022-one-owner-per-resilience-concern.md)
 - **A failure-classification predicate belongs to its own adapter** — wired to another dependency's, a retry retries nothing and a breaker never opens, silently · [ADR-0023](docs/adr/ADR-0023-failure-classification-belongs-to-the-dependency.md)
 
-All twenty-three, each with its rejected alternatives → [`docs/adr/`](docs/adr/README.md)
+- **A critic is bounded, fails closed, and stays off until measured** — one revision at most, an unusable review escalates, and it ships disabled because a critic can overturn a correct decision · [ADR-0024](docs/adr/ADR-0024-a-bounded-critic-off-until-measured.md)
+
+All twenty-four, each with its rejected alternatives → [`docs/adr/`](docs/adr/README.md)
 
 ## Run it
 
@@ -151,7 +153,9 @@ its floors can be watched turning red without spending a single model call ·
 
 ## Roadmap
 
-A reviewer agent (generator → critic) over the decision, then human-in-the-loop escalation.
+The reviewer agent (generator → critic) is built and proven without a key, but **not yet measured**:
+it ships switched off (`DRA_REVIEWER_ENABLED=false`) until two harness runs, off then on, show what
+it does to `decisionAccuracy`. Next: that measurement, then human-in-the-loop escalation.
 
 ## License
 

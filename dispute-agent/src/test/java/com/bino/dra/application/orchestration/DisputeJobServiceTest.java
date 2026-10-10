@@ -94,8 +94,9 @@ class DisputeJobServiceTest {
                 dispute.disputeId(), dispute.transactionId(), "summary", List.of("one finding"),
                 List.of("TXN-1"), List.of("get_transaction"), false, "evidence-stub@v1", NOW);
         RuleRetriever rules = (reasonCode, network) -> List.of("[visa-10.4#a] A rule passage.");
-        return new OrchestratorService(evidence, rules, engine, new PromptSafetyGuard(),
-                CLOCK, 100_000L, 3, "orchestrator@v1.0.0");
+        return new OrchestratorService(evidence, rules, engine,
+                (dispute, bundle, passages, proposed) -> new com.bino.dra.domain.model.ReviewVerdict.Coherent(),
+                new PromptSafetyGuard(), CLOCK, 100_000L, 3, "orchestrator@v1.0.0", false);
     }
 
     private static DisputeDecision decision(String id, Decision verdict) {

@@ -71,6 +71,9 @@ dra:
   budget:
     evidence-max-tokens: 40000
     decision-max-tokens: 12000
+  reviewer:
+    # Off until an eval run has measured it: a critic can overturn a correct decision (see ADR-0024)
+    enabled: ${DRA_REVIEWER_ENABLED:false}
   resilience:
     model:
       max-attempts: 3

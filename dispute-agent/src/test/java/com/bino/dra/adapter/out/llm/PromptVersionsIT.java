@@ -27,6 +27,9 @@ class PromptVersionsIT {
     @Value("${dra.prompts.rerank}")
     private String rerankVersion;
 
+    @Value("${dra.prompts.review}")
+    private String reviewVersion;
+
     @Value("${dra.agent.decision-version}")
     private String decisionLabel;
 
@@ -44,6 +47,7 @@ class PromptVersionsIT {
         assertThat(prompt("decision/decide." + decisionVersion)).isTrue();
         assertThat(prompt("evidence/gather." + evidenceVersion)).isTrue();
         assertThat(prompt("compliance/rerank." + rerankVersion)).isTrue();
+        assertThat(prompt("review/review." + reviewVersion)).isTrue();
     }
 
     private boolean prompt(String path) {

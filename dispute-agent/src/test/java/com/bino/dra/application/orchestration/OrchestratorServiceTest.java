@@ -135,8 +135,9 @@ class OrchestratorServiceTest {
 
     // Typed by the ports, not by the stubs: some tests pass stubs that fail instead
     private static OrchestratorService service(EvidenceGatherer g, RuleRetriever r, DecisionEngine e) {
-        return new OrchestratorService(g, r, e, new PromptSafetyGuard(), CLOCK,
-                THRESHOLD, MIN_DAYS, "orchestrator@v1.0.0");
+        return new OrchestratorService(g, r, e,
+                (dispute, bundle, passages, proposed) -> new com.bino.dra.domain.model.ReviewVerdict.Coherent(),
+                new PromptSafetyGuard(), CLOCK, THRESHOLD, MIN_DAYS, "orchestrator@v1.0.0", false);
     }
 
     private static DisputeDecision resolveWithDueDate(Instant dueDate, StubEngine engine) {

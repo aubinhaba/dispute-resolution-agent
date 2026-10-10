@@ -163,9 +163,10 @@ class EvalCorpusTest {
                 EvalCorpusTest::attestedBundle,
                 (reasonCode, network) -> List.of("[visa-10.4#liability-shift] Rule passage."),
                 engine,
+                (dispute, bundle, passages, proposed) -> new com.bino.dra.domain.model.ReviewVerdict.Coherent(),
                 new PromptSafetyGuard(),
                 Clock.systemUTC(),
-                THRESHOLD, MARGIN_DAYS, "orchestrator@v1.0.0");
+                THRESHOLD, MARGIN_DAYS, "orchestrator@v1.0.0", false);
     }
 
     private static EvidenceBundle attestedBundle(Dispute dispute) {

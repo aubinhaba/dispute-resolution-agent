@@ -1,6 +1,6 @@
 # Architecture decision records
 
-Twenty-two decisions, each recorded with the alternatives that were rejected and why. The five that
+Twenty-four decisions, each recorded with the alternatives that were rejected and why. The five that
 carry the thesis of the project are summarised in the [README](../../README.md); this is the
 complete set.
 
@@ -22,6 +22,7 @@ complete set.
 - [ADR-0018](ADR-0018-provenance-as-a-contract-property.md) — Provenance is a property of the REST contract
 - [ADR-0022](ADR-0022-one-owner-per-resilience-concern.md) — One owner per resilience concern, and a known outage becomes a decision
 - [ADR-0023](ADR-0023-failure-classification-belongs-to-the-dependency.md) — A dependency's failure-classification predicate belongs to its own adapter
+- [ADR-0024](ADR-0024-a-bounded-critic-off-until-measured.md) — A critic bounded to one revision, that fails closed, and stays off until it is measured
 
 ## Measuring and paying for a non-deterministic system
 

@@ -2,12 +2,15 @@ package com.bino.dra.application.orchestration;
 
 import com.bino.dra.application.guard.PromptSafetyGuard;
 import com.bino.dra.application.port.out.DecisionEngine;
+import com.bino.dra.application.port.out.DecisionReviewer;
 import com.bino.dra.application.port.out.DependencyUnavailableException;
 import com.bino.dra.application.port.out.EvidenceGatherer;
 import com.bino.dra.application.port.out.RuleRetriever;
+import com.bino.dra.domain.model.Decision;
 import com.bino.dra.domain.model.Dispute;
 import com.bino.dra.domain.model.DisputeDecision;
 import com.bino.dra.domain.model.EvidenceBundle;
+import com.bino.dra.domain.model.ReviewVerdict;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -22,34 +25,46 @@ import java.util.Optional;
 @Service
 public class OrchestratorService {
 
+    private static final String REVIEWED_SUFFIX = "+reviewed";
+    private static final String REVISED_SUFFIX = "+revised";
+    private static final String REVIEW_REJECTED_SUFFIX = "+review-rejected";
+    private static final String REVIEW_INCONCLUSIVE_SUFFIX = "+review-inconclusive";
+    private static final String REVISION_FAILED_SUFFIX = "+revision-failed";
+
     private static final Logger log = LoggerFactory.getLogger(OrchestratorService.class);
 
     private final EvidenceGatherer evidenceGatherer;
     private final RuleRetriever ruleRetriever;
     private final DecisionEngine decisionEngine;
+    private final DecisionReviewer reviewer;
     private final PromptSafetyGuard guard;
     private final Clock clock;
     private final long escalationThresholdMinorUnits;
     private final Duration representmentMinRemaining;
     private final String agentVersion;
+    private final boolean reviewerEnabled;
 
     public OrchestratorService(
             EvidenceGatherer evidenceGatherer,
             RuleRetriever ruleRetriever,
             DecisionEngine decisionEngine,
+            DecisionReviewer reviewer,
             PromptSafetyGuard guard,
             Clock clock,
             @Value("${dra.orchestrator.escalation-threshold-minor-units}") long escalationThresholdMinorUnits,
             @Value("${dra.orchestrator.representment-min-days-remaining}") long representmentMinDays,
-            @Value("${dra.orchestrator.version}") String agentVersion) {
+            @Value("${dra.orchestrator.version}") String agentVersion,
+            @Value("${dra.reviewer.enabled}") boolean reviewerEnabled) {
         this.evidenceGatherer = Objects.requireNonNull(evidenceGatherer);
         this.ruleRetriever = Objects.requireNonNull(ruleRetriever);
         this.decisionEngine = Objects.requireNonNull(decisionEngine);
+        this.reviewer = Objects.requireNonNull(reviewer);
         this.guard = Objects.requireNonNull(guard);
         this.clock = Objects.requireNonNull(clock);
         this.escalationThresholdMinorUnits = escalationThresholdMinorUnits;
         this.representmentMinRemaining = Duration.ofDays(representmentMinDays);
         this.agentVersion = Objects.requireNonNull(agentVersion);
+        this.reviewerEnabled = reviewerEnabled;
     }
 
     public DisputeDecision resolve(Dispute dispute) {
@@ -89,7 +104,57 @@ public class OrchestratorService {
             return escalateForOutage(safe, rulePassages, outage);
         }
 
-        return applyGovernance(safe, bundle, proposed);
+        return applyGovernance(safe, bundle, review(safe, bundle, rulePassages, proposed));
+    }
+
+    // Generator -> critic, capped at one revision: worst case two decisions and two reviews (see ADR-0024)
+    private DisputeDecision review(Dispute dispute, EvidenceBundle bundle, List<String> rulePassages,
+                                   DisputeDecision proposed) {
+        // A human will read these cases anyway: a critic on top adds nothing
+        if (!reviewerEnabled || proposed.decision() == Decision.ESCALATE
+                || escalationReason(dispute).isPresent()) {
+            return proposed;
+        }
+        try {
+            return switch (reviewer.review(dispute, bundle, rulePassages, proposed)) {
+                case ReviewVerdict.Coherent agreed -> proposed.withVersionSuffix(REVIEWED_SUFFIX);
+                case ReviewVerdict.Incoherent disagreed ->
+                        revise(dispute, bundle, rulePassages, proposed, disagreed.objections());
+                case ReviewVerdict.Inconclusive unusable -> proposed
+                        .escalatedBecause("unusable review: " + unusable.reason())
+                        .withVersionSuffix(REVIEW_INCONCLUSIVE_SUFFIX);
+            };
+        } catch (DependencyUnavailableException outage) {
+            // Fails closed: a decision that could not be reviewed never leaves labelled as reviewed
+            log.warn("Review interrupted on dispute {}: {}", dispute.disputeId(), outage.getMessage(), outage);
+            return proposed.escalatedBecause("review interrupted: " + outage.getMessage())
+                    .withVersionSuffix(REVIEW_INCONCLUSIVE_SUFFIX);
+        }
+    }
+
+    private DisputeDecision revise(Dispute dispute, EvidenceBundle bundle, List<String> rulePassages,
+                                   DisputeDecision proposed, List<String> objections) {
+        DisputeDecision revised;
+        try {
+            revised = decisionEngine.revise(dispute, bundle, rulePassages, proposed, objections);
+        } catch (DependencyUnavailableException outage) {
+            // Caught here not in review(): the audit must blame the revision, the critic had answered
+            log.warn("Revision interrupted on dispute {}: {}", dispute.disputeId(), outage.getMessage(), outage);
+            return proposed.escalatedBecause("revision interrupted: " + outage.getMessage())
+                    .withVersionSuffix(REVISION_FAILED_SUFFIX);
+        }
+        if (revised.decision() == Decision.ESCALATE) {
+            return revised.withVersionSuffix(REVISION_FAILED_SUFFIX);
+        }
+        return switch (reviewer.review(dispute, bundle, rulePassages, revised)) {
+            case ReviewVerdict.Coherent agreed -> revised.withVersionSuffix(REVISED_SUFFIX);
+            case ReviewVerdict.Incoherent still -> revised
+                    .escalatedBecause("persistent reviewer disagreement: " + String.join(" | ", still.objections()))
+                    .withVersionSuffix(REVIEW_REJECTED_SUFFIX);
+            case ReviewVerdict.Inconclusive unusable -> revised
+                    .escalatedBecause("unusable review: " + unusable.reason())
+                    .withVersionSuffix(REVIEW_INCONCLUSIVE_SUFFIX);
+        };
     }
 
     // The message names the dependency and the detail: "revoked key" and "503" call for different actions

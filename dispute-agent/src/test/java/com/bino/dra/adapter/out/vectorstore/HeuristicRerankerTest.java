@@ -46,8 +46,9 @@ class HeuristicRerankerTest {
         List<Document> reranked = new HeuristicReranker(2)
                 .process(VISA_10_4_QUERY, List.of(distractor, crossCutting));
 
-        // 0.60 + 0.15 beats 0.60 + 0.10: without that gap 3-D Secure stays at rank 46 and is never
-        // cited, though it is the rule that decides a fraud dispute
+        // Equal similarity on both sides on purpose: the tier alone decides, 100 + 0.60 against
+        // 0 + 0.60. A cross-cutting rule is useful everywhere, so it takes a slot ahead of a sheet
+        // that governs another dispute
         assertThat(reranked).extracting(Document::getId)
                 .containsExactly("shared-3ds#principle", "visa-12.6#scope");
     }

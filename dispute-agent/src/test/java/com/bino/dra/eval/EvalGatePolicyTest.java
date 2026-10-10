@@ -63,6 +63,6 @@ class EvalGatePolicyTest {
                                      double attestation, double firstPass,
                                      Set<String> agentVersionsObserved) {
         return new EvalReport(decisions, reasonCodes, injections, attestation, firstPass,
-                25, 0, 0, agentVersionsObserved, "claude-haiku-4-5", List.of());
+                25, 0, 0, new EvalReport.ReviewCounts(0, 0, 0, 0, 0), agentVersionsObserved, "claude-haiku-4-5", List.of());
     }
 }

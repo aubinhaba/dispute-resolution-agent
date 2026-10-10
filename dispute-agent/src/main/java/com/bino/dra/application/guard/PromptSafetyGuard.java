@@ -45,7 +45,8 @@ public class PromptSafetyGuard {
         return safe.equals(claim) ? dispute : dispute.withIssuerClaim(safe);
     }
 
-    static String neutraliseDelimiters(String text) {
+    // Public: model text fed into another model's prompt is untrusted input too (see ADR-0024)
+    public static String neutraliseDelimiters(String text) {
         String out = text
                 .replace('"', '\'')
                 .replace('`', '\'')

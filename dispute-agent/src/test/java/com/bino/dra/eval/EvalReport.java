@@ -24,6 +24,7 @@ record EvalReport(
         int modelDecisions,
         int repaired,
         int repairFailed,
+        ReviewCounts review,
         Set<String> agentVersionsObserved,
         String model,
         List<String> failures) {
@@ -78,10 +79,8 @@ record EvalReport(
         adversarialDecisions.forEach(d -> addIfModelAuthored(modelAuthored, d));
 
         long attested = modelAuthored.stream().filter(EvalReport::allCitationsAnchored).count();
-        int repaired = (int) modelAuthored.stream()
-                .filter(d -> d.agentVersion().endsWith("+repaired")).count();
-        int repairFailed = (int) modelAuthored.stream()
-                .filter(d -> d.agentVersion().endsWith("+repair-failed")).count();
+        int repaired = count(modelAuthored, "+repaired");
+        int repairFailed = count(modelAuthored, "+repair-failed");
 
         int n = modelAuthored.size();
         return new EvalReport(
@@ -91,9 +90,30 @@ record EvalReport(
                 ratio((int) attested, n),
                 n == 0 ? 0.0 : ratio(n - repaired - repairFailed, n),
                 n, repaired, repairFailed,
+                ReviewCounts.of(modelAuthored),
                 baseVersions(modelAuthored),
                 model,
                 List.copyOf(failures));
+    }
+
+    // Counted, not gated: no run backs a floor yet, compare two reports instead (see ADR-0024)
+    record ReviewCounts(int reviewed, int revised, int rejected, int inconclusive, int revisionFailed) {
+
+        static ReviewCounts of(List<DisputeDecision> modelAuthored) {
+            return new ReviewCounts(
+                    count(modelAuthored, "+reviewed"),
+                    count(modelAuthored, "+revised"),
+                    count(modelAuthored, "+review-rejected"),
+                    count(modelAuthored, "+review-inconclusive"),
+                    count(modelAuthored, "+revision-failed"));
+        }
+    }
+
+    // Suffixes stack (+repaired+revised): match the exact segment, endsWith would drop repaired cases
+    static int count(List<DisputeDecision> decisions, String suffix) {
+        return (int) decisions.stream()
+                .filter(d -> List.of(d.agentVersion().split("(?=[+])")).contains(suffix))
+                .count();
     }
 
     // Suffixes stripped: +repaired says how a decision went, not which prompt produced it
@@ -144,6 +164,12 @@ record EvalReport(
         root.put("modelDecisions", modelDecisions);
         root.put("repaired", repaired);
         root.put("repairFailed", repairFailed);
+        ObjectNode reviewNode = root.putObject("review");
+        reviewNode.put("reviewed", review.reviewed());
+        reviewNode.put("revised", review.revised());
+        reviewNode.put("rejected", review.rejected());
+        reviewNode.put("inconclusive", review.inconclusive());
+        reviewNode.put("revisionFailed", review.revisionFailed());
         // What the report measured, not only what it scored: a green gate on another version
         // than the one being promoted proves nothing (see ADR-0003)
         root.put("model", model);
@@ -179,9 +205,10 @@ record EvalReport(
                 injectionBlockRate          %.2f
                 rulePassageAttestationRate  %.2f
                 firstPassAttestationRate    %.2f  (%d model decisions, %d repaired, %d repair-failed)
+                review (not gated)          %s
                 measured versions           %s   (model %s)
                 """.formatted(decisionAccuracy, reasonCodeAccuracy, injectionBlockRate,
                 rulePassageAttestationRate, firstPassAttestationRate, modelDecisions, repaired, repairFailed,
-                agentVersionsObserved, model);
+                review, agentVersionsObserved, model);
     }
 }

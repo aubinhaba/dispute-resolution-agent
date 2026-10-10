@@ -43,6 +43,11 @@ public record DisputeDecision(
                 citedReasonCode, citedRulePassages, evidenceRefs, agentVersion, decidedAt);
     }
 
+    public DisputeDecision withVersionSuffix(String suffix) {
+        return new DisputeDecision(disputeId, decision, confidence, rationale, citedReasonCode,
+                citedRulePassages, evidenceRefs, agentVersion + suffix, decidedAt);
+    }
+
     public DisputeDecision withEvidenceRefs(List<String> attestedRefs) {
         return new DisputeDecision(disputeId, decision, confidence, rationale, citedReasonCode,
                 citedRulePassages, attestedRefs, agentVersion, decidedAt);
